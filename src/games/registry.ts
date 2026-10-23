@@ -94,6 +94,73 @@ const tankArt = `
   </g>
 </svg>`;
 
+const breakoutArt = `
+<svg class="breakout-art" viewBox="0 0 420 300" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <defs>
+    <radialGradient id="boHalo">
+      <stop offset="0%" stop-color="#5ec8e6" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#5ec8e6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="boPaddle" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f6fbff"/>
+      <stop offset="60%" stop-color="#c4d3e2"/>
+      <stop offset="100%" stop-color="#8ea1b4"/>
+    </linearGradient>
+    <filter id="boGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <circle cx="210" cy="150" r="150" fill="url(#boHalo)"/>
+  <g stroke="#ffffff" stroke-opacity="0.035">
+    <path d="M36 0v300M84 0v300M132 0v300M180 0v300M228 0v300M276 0v300M324 0v300M372 0v300"/>
+    <path d="M0 48h420M0 96h420M0 144h420M0 192h420M0 240h420"/>
+  </g>
+
+  <!-- 砖块墙 -->
+  <g>
+    <rect x="33" y="66" width="54" height="19" rx="4" fill="#f2a63b" fill-opacity="0.28" stroke="#f2a63b" stroke-width="1.6"/>
+    <rect x="93" y="66" width="54" height="19" rx="4" fill="#f2a63b" fill-opacity="0.28" stroke="#f2a63b" stroke-width="1.6"/>
+    <rect x="153" y="66" width="54" height="19" rx="4" fill="#f2a63b" fill-opacity="0.28" stroke="#f2a63b" stroke-width="1.6"/>
+    <rect x="213" y="66" width="54" height="19" rx="4" fill="#f2a63b" fill-opacity="0.28" stroke="#f2a63b" stroke-width="1.6"/>
+    <rect x="273" y="66" width="54" height="19" rx="4" fill="#f2a63b" fill-opacity="0.28" stroke="#f2a63b" stroke-width="1.6"/>
+    <rect x="333" y="66" width="54" height="19" rx="4" fill="#f2a63b" fill-opacity="0.28" stroke="#f2a63b" stroke-width="1.6"/>
+
+    <rect x="33" y="91" width="54" height="19" rx="4" fill="#e98a5f" fill-opacity="0.26" stroke="#e98a5f" stroke-width="1.6"/>
+    <rect x="93" y="91" width="54" height="19" rx="4" fill="#e98a5f" fill-opacity="0.26" stroke="#e98a5f" stroke-width="1.6"/>
+    <rect x="213" y="91" width="54" height="19" rx="4" fill="#e98a5f" fill-opacity="0.26" stroke="#e98a5f" stroke-width="1.6"/>
+    <rect x="273" y="91" width="54" height="19" rx="4" fill="#e98a5f" fill-opacity="0.26" stroke="#e98a5f" stroke-width="1.6"/>
+    <rect x="333" y="91" width="54" height="19" rx="4" fill="#e98a5f" fill-opacity="0.26" stroke="#e98a5f" stroke-width="1.6"/>
+
+    <rect x="33" y="116" width="54" height="19" rx="4" fill="#ad7ce0" fill-opacity="0.24" stroke="#ad7ce0" stroke-width="1.6"/>
+    <rect x="93" y="116" width="54" height="19" rx="4" fill="#ad7ce0" fill-opacity="0.24" stroke="#ad7ce0" stroke-width="1.6"/>
+    <rect x="153" y="116" width="54" height="19" rx="4" fill="#ad7ce0" fill-opacity="0.24" stroke="#ad7ce0" stroke-width="1.6"/>
+    <rect x="273" y="116" width="54" height="19" rx="4" fill="#ad7ce0" fill-opacity="0.24" stroke="#ad7ce0" stroke-width="1.6"/>
+    <rect x="333" y="116" width="54" height="19" rx="4" fill="#ad7ce0" fill-opacity="0.24" stroke="#ad7ce0" stroke-width="1.6"/>
+
+    <rect x="33" y="141" width="54" height="19" rx="4" fill="#5ec8e6" fill-opacity="0.24" stroke="#5ec8e6" stroke-width="1.6"/>
+    <rect x="153" y="141" width="54" height="19" rx="4" fill="#5ec8e6" fill-opacity="0.24" stroke="#5ec8e6" stroke-width="1.6"/>
+    <rect x="213" y="141" width="54" height="19" rx="4" fill="#5ec8e6" fill-opacity="0.24" stroke="#5ec8e6" stroke-width="1.6"/>
+    <rect x="333" y="141" width="54" height="19" rx="4" fill="#5ec8e6" fill-opacity="0.24" stroke="#5ec8e6" stroke-width="1.6"/>
+  </g>
+
+  <!-- 球与轨迹 -->
+  <g filter="url(#boGlow)">
+    <circle cx="286" cy="196" r="4.5" fill="#ffd08a" opacity="0.35"/>
+    <circle cx="271" cy="212" r="5" fill="#ffd08a" opacity="0.55"/>
+    <circle class="ball" cx="254" cy="230" r="8" fill="#fff8ec"/>
+  </g>
+
+  <!-- 挡板 -->
+  <g filter="url(#boGlow)">
+    <rect x="112" y="252" width="196" height="15" rx="7.5" fill="url(#boPaddle)"/>
+    <rect x="112" y="263" width="196" height="4" rx="2" fill="#f2a63b" fill-opacity="0.9"/>
+  </g>
+
+  <circle cx="254" cy="230" r="20" stroke="#ffd08a" stroke-opacity="0.18"/>
+</svg>`;
+
 export const games: GameMeta[] = [
   {
     id: 'tank',
@@ -110,10 +177,12 @@ export const games: GameMeta[] = [
     id: 'breakout',
     index: '02',
     title: '打砖块',
-    mode: '筹备中',
-    description: '经典反弹玩法，加速、分裂与连锁爆破。',
-    tags: ['单人'],
-    status: 'soon',
+    mode: '单机闯关',
+    description: '反弹小球击碎全部砖块，接住补给强化挡板，连击越高得分越多。',
+    tags: ['单人', '休闲闯关', '键鼠 / 触屏'],
+    status: 'ready',
+    art: breakoutArt,
+    loader: () => import('./breakout/index'),
   },
   {
     id: 'starfall',

@@ -9,7 +9,7 @@ const isTouch = () =>
 
 export default function Lobby() {
   const navigate = useNavigate();
-  const featured = games.find((g) => g.status === 'ready')!;
+  const ready = games.filter((g) => g.status === 'ready');
   const soon = games.filter((g) => g.status === 'soon');
   const touch = isTouch();
 
@@ -32,39 +32,42 @@ export default function Lobby() {
       </section>
 
       <section className="lobby-grid">
-        <Card
-          hoverable
-          className="game-card game-card-featured"
-          styles={{ body: { padding: 0 } }}
-          onClick={() => open(featured.id)}
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              open(featured.id);
-            }
-          }}
-        >
-          <div className="game-art" dangerouslySetInnerHTML={{ __html: featured.art ?? '' }} />
-          <div className="game-body">
-            <div className="game-top">
-              <Tag color="gold">已上线</Tag>
-              <span className="game-index">{featured.index}</span>
+        {ready.map((g) => (
+          <Card
+            key={g.id}
+            hoverable
+            className="game-card game-card-featured"
+            styles={{ body: { padding: 0 } }}
+            onClick={() => open(g.id)}
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                open(g.id);
+              }
+            }}
+          >
+            <div className="game-art" dangerouslySetInnerHTML={{ __html: g.art ?? '' }} />
+            <div className="game-body">
+              <div className="game-top">
+                <Tag color="gold">已上线</Tag>
+                <span className="game-index">{g.index}</span>
+              </div>
+              <h2>{g.title}</h2>
+              <p>{g.description}</p>
+              <div className="game-tags">
+                {g.tags.map((t) => (
+                  <Tag key={t}>{t}</Tag>
+                ))}
+              </div>
+              <div className="game-cta">
+                <Button type="primary" size="large" icon={<PlayCircleOutlined />}>
+                  开始游戏
+                </Button>
+              </div>
             </div>
-            <h2>{featured.title}</h2>
-            <p>{featured.description}</p>
-            <div className="game-tags">
-              {featured.tags.map((t) => (
-                <Tag key={t}>{t}</Tag>
-              ))}
-            </div>
-            <div className="game-cta">
-              <Button type="primary" size="large" icon={<PlayCircleOutlined />}>
-                开始游戏
-              </Button>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        ))}
 
         {soon.map((g) => (
           <Card key={g.id} className="game-card game-card-soon">
@@ -81,7 +84,7 @@ export default function Lobby() {
 
       <div className="page-foot">
         <span>
-          共 {games.filter((g) => g.status === 'ready').length} 款可用 · {soon.length} 款筹备中
+          共 {ready.length} 款可用 · {soon.length} 款筹备中
         </span>
         <span>单人模式 · {touch ? '支持触屏与键盘鼠标' : '建议使用键盘与鼠标'}</span>
       </div>

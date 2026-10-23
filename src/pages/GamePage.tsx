@@ -68,7 +68,7 @@ export default function GamePage() {
             />
           </svg>
           <h2>横屏体验更好</h2>
-          <p>坦克大战需要更宽的视野，旋转手机即可获得完整战场。</p>
+          <p>旋转手机后可以获得更完整的游戏视野与更大的操作区域。</p>
           <button className="btn-secondary" type="button" onClick={() => setGateDismissed(true)}>
             继续竖屏
           </button>

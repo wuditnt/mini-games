@@ -253,6 +253,22 @@
   transform: rotate(-8deg);
 }
 
+.breakout-art .ball {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ball-bob 2.8s ease-in-out infinite;
+}
+
+@keyframes ball-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
 .game-art::after {
   content: "";
   position: absolute;
