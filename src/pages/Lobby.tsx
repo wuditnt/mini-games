@@ -32,11 +32,11 @@ export default function Lobby() {
       </section>
 
       <section className="lobby-grid">
-        {ready.map((g) => (
+        {ready.map((g, i) => (
           <Card
             key={g.id}
             hoverable
-            className="game-card game-card-featured"
+            className={`game-card ${i === 0 ? 'game-card-featured' : 'game-card-compact'}`}
             styles={{ body: { padding: 0 } }}
             onClick={() => open(g.id)}
             tabIndex={0}
@@ -84,7 +84,8 @@ export default function Lobby() {
 
       <div className="page-foot">
         <span>
-          共 {ready.length} 款可用 · {soon.length} 款筹备中
+          共 {ready.length} 款可用
+          {soon.length > 0 ? ` · ${soon.length} 款筹备中` : ''}
         </span>
         <span>单人模式 · {touch ? '支持触屏与键盘鼠标' : '建议使用键盘与鼠标'}</span>
       </div>

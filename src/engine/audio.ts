@@ -130,6 +130,24 @@ class Sfx {
   click() {
     this.tone({ from: 700, to: 520, dur: 0.05, type: 'triangle', gain: 0.05 });
   }
+
+  starShot() {
+    this.tone({ from: 980, to: 680, dur: 0.04, type: 'triangle', gain: 0.018 });
+  }
+
+  graze() {
+    this.tone({ from: 1700, to: 2200, dur: 0.045, type: 'sine', gain: 0.026 });
+  }
+
+  bomb() {
+    this.burst({ dur: 0.6, gain: 0.26, from: 1800, to: 70 });
+    this.tone({ from: 210, to: 42, dur: 0.6, type: 'sine', gain: 0.18 });
+  }
+
+  hurt() {
+    this.burst({ dur: 0.3, gain: 0.16, from: 1400, to: 180 });
+    this.tone({ from: 190, to: 60, dur: 0.3, type: 'sawtooth', gain: 0.14 });
+  }
 }
 
 export const sfx = new Sfx();

@@ -161,6 +161,68 @@ const breakoutArt = `
   <circle cx="254" cy="230" r="20" stroke="#ffd08a" stroke-opacity="0.18"/>
 </svg>`;
 
+const starfallArt = `
+<svg class="starfall-art" viewBox="0 0 420 300" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <defs>
+    <radialGradient id="sfHalo">
+      <stop offset="0%" stop-color="#5ec8e6" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#5ec8e6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sfHull" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f4fdff"/>
+      <stop offset="55%" stop-color="#b7e6f5"/>
+      <stop offset="100%" stop-color="#5f8fae"/>
+    </linearGradient>
+    <filter id="sfGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <circle cx="210" cy="150" r="150" fill="url(#sfHalo)"/>
+  <g stroke="#ffffff" stroke-opacity="0.03">
+    <path d="M42 0v300M100 0v300M158 0v300M216 0v300M274 0v300M332 0v300M390 0v300"/>
+    <path d="M0 54h420M0 108h420M0 162h420M0 216h420M0 270h420"/>
+  </g>
+
+  <g opacity="0.7">
+    <circle cx="72" cy="62" r="1.6" fill="#9fb6d4"/>
+    <circle cx="342" cy="46" r="1.2" fill="#9fb6d4"/>
+    <circle cx="300" cy="104" r="1.8" fill="#cfe8ff"/>
+    <circle cx="108" cy="128" r="1.1" fill="#9fb6d4"/>
+    <circle cx="364" cy="196" r="1.4" fill="#cfe8ff"/>
+    <circle cx="58" cy="222" r="1.2" fill="#9fb6d4"/>
+  </g>
+
+  <!-- 敌机 -->
+  <g filter="url(#sfGlow)">
+    <path d="M210 96 L186 70 L203 76 L217 76 L234 70 Z" fill="rgba(197,140,255,0.18)" stroke="#b884ff" stroke-width="1.8" stroke-linejoin="round"/>
+    <circle cx="210" cy="82" r="2.6" fill="#efe2ff"/>
+  </g>
+
+  <!-- 弹幕 -->
+  <g class="sf-orbs" filter="url(#sfGlow)">
+    <circle cx="196" cy="122" r="4" fill="#ff6f9f"/>
+    <circle cx="228" cy="130" r="3.4" fill="#ff6f9f"/>
+    <circle cx="178" cy="146" r="3" fill="#ffb15e"/>
+    <circle cx="244" cy="152" r="4.2" fill="#c58cff"/>
+    <circle cx="206" cy="160" r="3" fill="#ff6f9f" opacity="0.8"/>
+    <circle cx="166" cy="168" r="2.6" fill="#ffb15e" opacity="0.7"/>
+    <circle cx="256" cy="174" r="2.8" fill="#c58cff" opacity="0.7"/>
+  </g>
+
+  <!-- 战机 -->
+  <g filter="url(#sfGlow)">
+    <path d="M210 244 L204 262 L210 278 L216 262 Z" fill="#8ff2ff" opacity="0.35"/>
+    <g transform="translate(210 232)">
+      <path d="M0 -24 L-7 -6 L-19 6 L-13 14 L-4 11 L4 11 L13 14 L19 6 L7 -6Z" fill="url(#sfHull)" stroke="#bff4ff" stroke-width="1.4"/>
+      <ellipse cx="0" cy="-6" rx="3.2" ry="6.5" fill="#64f0ff"/>
+      <rect x="-15" y="3" width="3" height="7" rx="1" fill="#f2a63b"/>
+      <rect x="12" y="3" width="3" height="7" rx="1" fill="#f2a63b"/>
+    </g>
+  </g>
+</svg>`;
+
 export const games: GameMeta[] = [
   {
     id: 'tank',
@@ -188,9 +250,11 @@ export const games: GameMeta[] = [
     id: 'starfall',
     index: '03',
     title: '星际弹幕',
-    mode: '筹备中',
-    description: '俯视视角的太空射击，弹幕、闪避与极限擦弹。',
-    tags: ['单人', '射击'],
-    status: 'soon',
+    mode: '单机弹幕',
+    description: '在密集弹幕中穿行，擦弹充能、引爆炸弹清屏。每五波迎战一次 BOSS。',
+    tags: ['单人', '弹幕射击', '键鼠 / 触屏'],
+    status: 'ready',
+    art: starfallArt,
+    loader: () => import('./starfall/index'),
   },
 ];
