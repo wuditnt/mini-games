@@ -567,16 +567,18 @@ export class TankGame {
         }
         if (dead) break;
 
-        if (b.team === 'enemy') {
-          const half = BASE_SIZE / 2;
-          if (
-            Math.abs(b.x - this.base.x) < half &&
-            Math.abs(b.y - this.base.y) < half
-          ) {
+        const half = BASE_SIZE / 2;
+        if (
+          Math.abs(b.x - this.base.x) < half &&
+          Math.abs(b.y - this.base.y) < half
+        ) {
+          if (b.team === 'enemy') {
             this.hurtBase();
-            dead = true;
-            break;
+          } else {
+            this.destroyOwnBase();
           }
+          dead = true;
+          break;
         }
       }
 
@@ -632,6 +634,18 @@ export class TankGame {
     this.burst(this.base.x, this.base.y - 10, 12, '#ffb15c');
     sfx.explode();
     if (this.base.hp <= 0) this.endGame('基地被摧毁');
+    this.onHud();
+  }
+
+  private destroyOwnBase() {
+    this.base.hp = 0;
+    this.base.flash = 1;
+    this.addShake(16);
+    this.hitStop = Math.max(this.hitStop, 0.08);
+    this.burst(this.base.x, this.base.y, 28, '#ffcf87');
+    this.spark(this.base.x, this.base.y, '#fff3d6');
+    sfx.explode();
+    this.endGame('你摧毁了自己的基地');
     this.onHud();
   }
 
