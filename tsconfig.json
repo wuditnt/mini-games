@@ -9,6 +9,7 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "useDefineForClassFields": true,
+    "jsx": "react-jsx",
     "forceConsistentCasingInFileNames": true
   },
   "include": ["src"]

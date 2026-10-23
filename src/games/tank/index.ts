@@ -4,6 +4,7 @@ import { drawGame } from './render';
 import { Input } from '../../engine/input';
 import { TouchControls } from '../../engine/touch';
 import { sfx } from '../../engine/audio';
+import { addRun } from '../../data/runs';
 import type { GameHandle, MountOptions } from '../types';
 
 const BEST_KEY = 'tank.best';
@@ -178,10 +179,12 @@ export function mount(host: HTMLElement, opts: MountOptions): GameHandle {
   };
 
   let startHintTimer = 0;
+  let startedAt = 0;
 
   function start() {
     sfx.unlock();
     sfx.click();
+    startedAt = Date.now();
     game.begin();
     game.best = Math.max(game.best, game.score);
     showOverlay(null);
@@ -228,6 +231,14 @@ export function mount(host: HTMLElement, opts: MountOptions): GameHandle {
 
   game.onGameOver = (reason, score, best) => {
     localStorage.setItem(BEST_KEY, String(best));
+    addRun({
+      gameId: 'tank',
+      gameTitle: '坦克大战',
+      score,
+      wave: game.wave,
+      duration: startedAt ? Math.round((Date.now() - startedAt) / 1000) : 0,
+      result: reason,
+    });
     el.reason.textContent = reason;
     el.final.textContent = String(score);
     el.bestOver.textContent = String(best);
