@@ -291,6 +291,10 @@
   animation: apple-pulse 2.6s ease-in-out infinite;
 }
 
+.stage-frame.is-touch .hud-record {
+  display: none;
+}
+
 @keyframes apple-pulse {
   0%,
   100% {

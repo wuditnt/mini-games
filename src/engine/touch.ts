@@ -1,3 +1,5 @@
+import { isMobileDevice } from '../lib/device';
+
 const MAX_OFFSET = 34; // 摇杆最大位移
 const DEAD_ZONE = 0.2; // 死区（相对于最大位移）
 
@@ -36,9 +38,7 @@ export class TouchControls {
   private cleanups: Array<() => void> = [];
 
   constructor(host: HTMLElement, frame: HTMLElement) {
-    this.enabled =
-      typeof window !== 'undefined' &&
-      (window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
+    this.enabled = typeof window !== 'undefined' && isMobileDevice();
     if (!this.enabled) return;
 
     frame.classList.add('is-touch');

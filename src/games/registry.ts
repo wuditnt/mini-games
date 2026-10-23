@@ -264,6 +264,68 @@ const snakeArt = `
   <circle cx="276" cy="92" r="14" stroke="#ffd76a" stroke-opacity="0.35" stroke-dasharray="3 5"/>
 </svg>`;
 
+const gomokuArt = `
+<svg class="gomoku-art" viewBox="0 0 420 300" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <defs>
+    <radialGradient id="gkHalo">
+      <stop offset="0%" stop-color="#f2a63b" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#f2a63b" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gkBoard" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#46341f"/>
+      <stop offset="60%" stop-color="#2e2215"/>
+      <stop offset="100%" stop-color="#1d150e"/>
+    </linearGradient>
+    <radialGradient id="gkBlack" cx="0.35" cy="0.3" r="0.8">
+      <stop offset="0%" stop-color="#7b8695"/>
+      <stop offset="45%" stop-color="#2b323c"/>
+      <stop offset="100%" stop-color="#080b10"/>
+    </radialGradient>
+    <radialGradient id="gkWhite" cx="0.35" cy="0.3" r="0.8">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="60%" stop-color="#f1e9d8"/>
+      <stop offset="100%" stop-color="#b6ab93"/>
+    </radialGradient>
+    <filter id="gkGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <circle cx="210" cy="150" r="150" fill="url(#gkHalo)"/>
+
+  <g filter="url(#gkGlow)">
+    <rect x="38" y="36" width="344" height="228" rx="9" fill="url(#gkBoard)" stroke="#7d5b34" stroke-opacity="0.5"/>
+  </g>
+
+  <g stroke="#e7d3ac" stroke-opacity="0.22">
+    <path d="M66 62v190M100 62v190M134 62v190M168 62v190M202 62v190M236 62v190M270 62v190M304 62v190M338 62v190"/>
+    <path d="M66 62h272M66 96h272M66 130h272M66 164h272M66 198h272M66 232h272"/>
+  </g>
+  <rect x="66" y="62" width="272" height="170" stroke="#e7d3ac" stroke-opacity="0.4"/>
+  <g fill="#e7d3ac" fill-opacity="0.7">
+    <circle cx="168" cy="130" r="2.4"/>
+    <circle cx="202" cy="164" r="2.4"/>
+    <circle cx="236" cy="130" r="2.4"/>
+  </g>
+
+  <g filter="url(#gkGlow)">
+    <circle cx="134" cy="102" r="15" fill="url(#gkWhite)"/>
+    <circle cx="202" cy="102" r="15" fill="url(#gkWhite)"/>
+    <circle cx="168" cy="164" r="15" fill="url(#gkWhite)"/>
+    <circle cx="270" cy="130" r="15" fill="url(#gkWhite)"/>
+  </g>
+
+  <path d="M100 130H236" stroke="#ffd08a" stroke-width="5" stroke-linecap="round" stroke-opacity="0.75" filter="url(#gkGlow)"/>
+  <g>
+    <circle cx="100" cy="130" r="15" fill="url(#gkBlack)"/>
+    <circle cx="134" cy="130" r="15" fill="url(#gkBlack)"/>
+    <circle cx="168" cy="130" r="15" fill="url(#gkBlack)"/>
+    <circle cx="202" cy="130" r="15" fill="url(#gkBlack)"/>
+    <circle cx="236" cy="130" r="15" fill="url(#gkBlack)"/>
+  </g>
+</svg>`;
+
 export const games: GameMeta[] = [
   {
     id: 'tank',
@@ -308,5 +370,16 @@ export const games: GameMeta[] = [
     status: 'ready',
     art: snakeArt,
     loader: () => import('./snake/index'),
+  },
+  {
+    id: 'gomoku',
+    index: '05',
+    title: '五子棋',
+    mode: '人机对战',
+    description: '你执黑先行，与电脑轮流落子。横、竖、斜任意方向先连成五子即获胜。',
+    tags: ['单人', '人机对战', '键鼠 / 触屏'],
+    status: 'ready',
+    art: gomokuArt,
+    loader: () => import('./gomoku/index'),
   },
 ];

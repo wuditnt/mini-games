@@ -135,7 +135,7 @@ export default function Stats() {
         </Col>
         <Col xs={12} md={6}>
           <Card>
-            <Statistic title="最高分" value={stats.best} valueStyle={{ color: '#f2a63b' }} />
+            <Statistic title="最高分" value={stats.best} styles={{ content: { color: '#f2a63b' } }} />
           </Card>
         </Col>
         <Col xs={12} md={6}>

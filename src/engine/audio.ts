@@ -163,6 +163,17 @@ class Sfx {
     this.burst({ dur: 0.36, gain: 0.2, from: 1500, to: 110 });
     this.tone({ from: 260, to: 70, dur: 0.34, type: 'sawtooth', gain: 0.12 });
   }
+
+  place() {
+    this.tone({ from: 560, to: 300, dur: 0.06, type: 'triangle', gain: 0.1 });
+    this.burst({ dur: 0.05, gain: 0.05, from: 2200, to: 600 });
+  }
+
+  win() {
+    [523, 659, 784, 1047].forEach((f, i) =>
+      this.tone({ from: f, dur: 0.18, type: 'triangle', gain: 0.1, delay: i * 0.1 })
+    );
+  }
 }
 
 export const sfx = new Sfx();

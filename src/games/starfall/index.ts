@@ -4,15 +4,13 @@ import { drawGame } from './render';
 import { Input } from '../../engine/input';
 import { sfx } from '../../engine/audio';
 import { addRun } from '../../data/runs';
+import { isMobileDevice } from '../../lib/device';
 import type { GameHandle, MountOptions } from '../types';
 
 const BEST_KEY = 'starfall.best';
 
-const isTouchDevice = () =>
-  window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
-
 export function mount(host: HTMLElement, opts: MountOptions): GameHandle {
-  const touchDevice = isTouchDevice();
+  const touchDevice = isMobileDevice();
 
   host.innerHTML = `
     <div class="stage-frame crt${touchDevice ? ' is-touch' : ''}">

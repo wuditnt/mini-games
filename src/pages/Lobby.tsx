@@ -3,16 +3,15 @@ import { Button, Card, Tag } from 'antd';
 import { PlayCircleOutlined } from '@ant-design/icons';
 import { games } from '../games/registry';
 import { sfx } from '../engine/audio';
-
-const isTouch = () =>
-  window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+import { isMobileDevice } from '../lib/device';
 
 export default function Lobby() {
   const navigate = useNavigate();
   const ready = games.filter((g) => g.status === 'ready');
   const soon = games.filter((g) => g.status === 'soon');
   const uniform = ready.length >= 4;
-  const touch = isTouch();
+  const wideLast = uniform && ready.length % 2 === 1;
+  const touch = isMobileDevice();
 
   const open = (id: string) => {
     sfx.unlock();
@@ -37,7 +36,11 @@ export default function Lobby() {
           <Card
             key={g.id}
             hoverable
-            className={`game-card ${uniform || i > 0 ? 'game-card-compact' : 'game-card-featured'}`}
+            className={`game-card ${
+              (!uniform && i === 0) || (wideLast && i === ready.length - 1)
+                ? 'game-card-featured'
+                : 'game-card-compact'
+            }`}
             styles={{ body: { padding: 0 } }}
             onClick={() => open(g.id)}
             tabIndex={0}
