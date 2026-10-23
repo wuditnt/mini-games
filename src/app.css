@@ -285,6 +285,22 @@
   }
 }
 
+.snake-art .apple {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: apple-pulse 2.6s ease-in-out infinite;
+}
+
+@keyframes apple-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+}
+
 /* 次级游戏卡片（两列并排） */
 .game-card-compact {
   cursor: pointer;

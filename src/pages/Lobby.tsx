@@ -11,6 +11,7 @@ export default function Lobby() {
   const navigate = useNavigate();
   const ready = games.filter((g) => g.status === 'ready');
   const soon = games.filter((g) => g.status === 'soon');
+  const uniform = ready.length >= 4;
   const touch = isTouch();
 
   const open = (id: string) => {
@@ -36,7 +37,7 @@ export default function Lobby() {
           <Card
             key={g.id}
             hoverable
-            className={`game-card ${i === 0 ? 'game-card-featured' : 'game-card-compact'}`}
+            className={`game-card ${uniform || i > 0 ? 'game-card-compact' : 'game-card-featured'}`}
             styles={{ body: { padding: 0 } }}
             onClick={() => open(g.id)}
             tabIndex={0}

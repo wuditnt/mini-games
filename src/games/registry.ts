@@ -223,6 +223,47 @@ const starfallArt = `
   </g>
 </svg>`;
 
+const snakeArt = `
+<svg class="snake-art" viewBox="0 0 420 300" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <defs>
+    <radialGradient id="snHalo">
+      <stop offset="0%" stop-color="#5ec8e6" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="#5ec8e6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="snBody" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#9ff2ff"/>
+      <stop offset="100%" stop-color="#3f9fbf"/>
+    </linearGradient>
+    <filter id="snGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <circle cx="210" cy="150" r="150" fill="url(#snHalo)"/>
+  <g stroke="#ffffff" stroke-opacity="0.04">
+    <path d="M0 60h420M0 120h420M0 180h420M0 240h420"/>
+    <path d="M60 0v300M120 0v300M180 0v300M240 0v300M300 0v300M360 0v300"/>
+  </g>
+
+  <g filter="url(#snGlow)">
+    <path d="M86 224 H190 Q210 224 210 204 V182 Q210 162 230 162 H276 Q296 162 296 182 V204 Q296 224 316 224 H328"
+      stroke="url(#snBody)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <rect x="326" y="210" width="30" height="30" rx="9" fill="#bff6ff"/>
+    <circle cx="336" cy="221" r="3" fill="#0b1a22"/>
+    <circle cx="345" cy="231" r="3" fill="#0b1a22"/>
+  </g>
+
+  <g class="apple" filter="url(#snGlow)">
+    <circle cx="104" cy="128" r="15" fill="#ff7a5c"/>
+    <circle cx="99" cy="123" r="5" fill="#ffb199" opacity="0.8"/>
+    <ellipse cx="112" cy="113" rx="7" ry="3.4" transform="rotate(-28 112 113)" fill="#7ce0a3"/>
+  </g>
+
+  <circle cx="276" cy="92" r="8" fill="#ffd76a" opacity="0.9"/>
+  <circle cx="276" cy="92" r="14" stroke="#ffd76a" stroke-opacity="0.35" stroke-dasharray="3 5"/>
+</svg>`;
+
 export const games: GameMeta[] = [
   {
     id: 'tank',
@@ -256,5 +297,16 @@ export const games: GameMeta[] = [
     status: 'ready',
     art: starfallArt,
     loader: () => import('./starfall/index'),
+  },
+  {
+    id: 'snake',
+    index: '04',
+    title: '贪吃蛇',
+    mode: '单机经典',
+    description: '吞下果实不断变长，连续进食叠加连击倍率。速度随长度提升，别撞墙，也别咬到自己。',
+    tags: ['单人', '经典街机', '键鼠 / 触屏'],
+    status: 'ready',
+    art: snakeArt,
+    loader: () => import('./snake/index'),
   },
 ];
