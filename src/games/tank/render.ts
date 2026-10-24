@@ -252,7 +252,9 @@ function drawTank(ctx: CanvasRenderingContext2D, g: TankGame, tank: Tank, t: num
   const isEnemy = tank.team === 'enemy';
   const palette = isEnemy
     ? ENEMY_COLORS[tank.kind as EnemyKind]
-    : { body: PALETTE.playerHull, dark: '#8795a7', trim: PALETTE.playerTrim };
+    : tank.ownerId === 'p2'
+      ? { body: '#d9eef8', dark: '#7ea8bd', trim: '#5fd0e6' }
+      : { body: PALETTE.playerHull, dark: '#8795a7', trim: PALETTE.playerTrim };
 
   const scale = (tank.r / 14) * 1.2;
   const hl = 26 * scale;
@@ -332,6 +334,12 @@ function drawTank(ctx: CanvasRenderingContext2D, g: TankGame, tank: Tank, t: num
   roundRect(ctx, 0, -3.2 * scale, hl + 6 * scale, 6.4 * scale, 2.4 * scale);
   if (isEnemy) {
     ctx.fillStyle = palette.dark;
+  } else if (tank.ownerId === 'p2') {
+    const barrel = ctx.createLinearGradient(0, -3.2 * scale, 0, 3.2 * scale);
+    barrel.addColorStop(0, '#9be6f7');
+    barrel.addColorStop(0.5, '#5fc6df');
+    barrel.addColorStop(1, '#2f7e95');
+    ctx.fillStyle = barrel;
   } else {
     const barrel = ctx.createLinearGradient(0, -3.2 * scale, 0, 3.2 * scale);
     barrel.addColorStop(0, '#f7c471');
@@ -559,7 +567,9 @@ export function drawGame(
 
   for (const b of g.bullets) drawBullet(ctx, b);
 
-  if (g.player.hp > 0) drawTank(ctx, g, g.player, time);
+  for (const p of g.players) {
+    if (p.hp > 0 || p.spawnT > 0) drawTank(ctx, g, p, time);
+  }
   for (const e of g.enemies) drawTank(ctx, g, e, time);
 
   // 树丛盖在坦克上方

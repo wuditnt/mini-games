@@ -65,13 +65,14 @@ const lerpAngle = (a: number, b: number, t: number) => a + angleDelta(a, b) * cl
 
 let uid = 1;
 
-function createPlayer(): Tank {
+function createPlayer(ownerId: string, x: number, y: number): Tank {
   return {
     id: uid++,
     team: 'player',
     kind: 'player',
-    x: PLAYER_START.x,
-    y: PLAYER_START.y,
+    ownerId,
+    x,
+    y,
     r: 14,
     hullAngle: -Math.PI / 2,
     turretAngle: -Math.PI / 2,
@@ -87,6 +88,7 @@ function createPlayer(): Tank {
     muzzle: 0,
     tread: 0,
     moving: false,
+    respawnT: 0,
     ai: null,
   };
 }
@@ -114,6 +116,7 @@ function createEnemy(kind: EnemyKind, x: number, y: number): Tank {
     muzzle: 0,
     tread: 0,
     moving: false,
+    respawnT: 0,
     ai: { dir: Math.PI / 2, retarget: 0, blocked: 0 },
   };
 }
@@ -141,7 +144,13 @@ export class TankGame {
   wave = 0;
   time = 0;
 
-  player: Tank = createPlayer();
+  /** 玩家坦克（单人 1 辆，联机合作 2 辆），ownerId 区分归属 */
+  players: Tank[] = [createPlayer('p1', PLAYER_START.x, PLAYER_START.y)];
+  coop = false;
+  /** 本机控制的玩家（房主/单人为 p1，队员在 guest 视图中为 p2） */
+  localOwner = 'p1';
+  /** 地块版本号，联机快照据此决定是否同步地形 */
+  tilesRev = 0;
   enemies: Tank[] = [];
   bullets: Bullet[] = [];
   particles: Particle[] = [];
@@ -173,6 +182,7 @@ export class TankGame {
   private spawnTimer = 0;
   private spawnIndex = 0;
   private intermission = 0;
+  private remoteControls = new Map<string, Controls>();
 
   constructor(best = 0) {
     this.best = best;
@@ -218,15 +228,42 @@ export class TankGame {
     this.intermission = 0;
 
     this.base = { ...BASE_CENTER, hp: 3, maxHp: 3, flash: 0 };
-    this.player = createPlayer();
+    const offset = this.coop ? 68 : 0;
+    this.players = [createPlayer('p1', PLAYER_START.x - offset, PLAYER_START.y)];
+    if (this.coop) {
+      this.players.push(createPlayer('p2', PLAYER_START.x + offset, PLAYER_START.y));
+    }
+    this.remoteControls.clear();
+    this.tilesRev++;
     this.controls.firing = false;
   }
 
-  begin() {
+  begin(coop = false) {
+    this.coop = coop;
     this.reset();
     this.mode = 'playing';
     this.startWave(1);
     this.onHud();
+  }
+
+  /** 联机时由网络层写入远端玩家的输入 */
+  setControls(ownerId: string, controls: Controls) {
+    this.remoteControls.set(ownerId, controls);
+  }
+
+  /** 队友掉线时移除其坦克，剩余玩家继续单人作战 */
+  removePlayer(ownerId: string) {
+    this.players = this.players.filter((p) => p.ownerId !== ownerId);
+    this.remoteControls.delete(ownerId);
+    this.coop = this.players.length > 1;
+    this.onHud();
+  }
+
+  private controlsFor(p: Tank): Controls {
+    if (!p.ownerId || p.ownerId === this.localOwner) return this.controls;
+    const remote = this.remoteControls.get(p.ownerId);
+    if (remote) return remote;
+    return { mx: 0, my: 0, aimX: p.x, aimY: p.y - 120, firing: false };
   }
 
   pause() {
@@ -253,7 +290,7 @@ export class TankGame {
     this.rapidT = Math.max(0, this.rapidT - dt);
     this.freezeT = Math.max(0, this.freezeT - dt);
 
-    this.updatePlayer(dt);
+    for (const p of this.players) this.updatePlayer(p, dt);
     for (const e of this.enemies) this.updateEnemy(e, dt);
     this.resolveOverlap();
     this.updateBullets(dt);
@@ -265,15 +302,24 @@ export class TankGame {
 
   /* ---------------- 玩家 ---------------- */
 
-  private updatePlayer(dt: number) {
-    const p = this.player;
+  private updatePlayer(p: Tank, dt: number) {
+    if (p.hp <= 0) {
+      p.moving = false;
+      if (p.respawnT > 0) {
+        p.respawnT -= dt;
+        if (p.respawnT <= 0) this.revive(p);
+      }
+      return;
+    }
+
     p.cooldown = Math.max(0, p.cooldown - dt);
     p.invuln = Math.max(0, p.invuln - dt);
     p.hitFlash = Math.max(0, p.hitFlash - dt * 3.2);
     p.muzzle = Math.max(0, p.muzzle - dt);
 
-    let mx = this.controls.mx;
-    let my = this.controls.my;
+    const c = this.controlsFor(p);
+    let mx = c.mx;
+    let my = c.my;
     const len = Math.hypot(mx, my);
     if (len > 0.001) {
       mx /= len;
@@ -290,13 +336,31 @@ export class TankGame {
       p.moving = false;
     }
 
-    p.turretAngle = Math.atan2(this.controls.aimY - p.y, this.controls.aimX - p.x);
+    p.turretAngle = Math.atan2(c.aimY - p.y, c.aimX - p.x);
 
-    const inFlight = this.bullets.reduce((n, b) => n + (b.team === 'player' ? 1 : 0), 0);
-    if (this.controls.firing && p.cooldown <= 0 && inFlight < 5) {
+    const inFlight = this.bullets.reduce(
+      (n, b) => n + (b.team === 'player' && b.owner === p.ownerId ? 1 : 0),
+      0
+    );
+    if (c.firing && p.cooldown <= 0 && inFlight < 5) {
       this.fire(p);
       p.cooldown = this.rapidT > 0 ? 0.13 : p.fireDelay;
     }
+  }
+
+  private revive(p: Tank) {
+    const offset = this.coop ? (p.ownerId === 'p2' ? 68 : -68) : 0;
+    p.hp = 2;
+    p.x = PLAYER_START.x + offset;
+    p.y = PLAYER_START.y;
+    p.cooldown = 0.4;
+    p.spawnT = 0.8;
+    p.invuln = 2;
+    p.respawnT = 0;
+    this.burst(p.x, p.y, 12, '#a8e6ff');
+    this.float('重返战场', p.x, p.y - 26, '#9fd8ff');
+    sfx.pickup();
+    this.onHud();
   }
 
   /* ---------------- 敌人 AI ---------------- */
@@ -358,11 +422,17 @@ export class TankGame {
   }
 
   private pickTarget(e: Tank): { x: number; y: number } {
-    const p = this.player;
-    if (p.hp > 0) {
+    let best: Tank | null = null;
+    let bestDist = Infinity;
+    for (const p of this.players) {
+      if (p.hp <= 0) continue;
       const d = Math.hypot(p.x - e.x, p.y - e.y);
-      if (d < 300 || Math.random() < 0.34) return p;
+      if (d < bestDist) {
+        bestDist = d;
+        best = p;
+      }
     }
+    if (best && (bestDist < 300 || Math.random() < 0.34)) return best;
     return this.base;
   }
 
@@ -411,19 +481,25 @@ export class TankGame {
   private moveTank(t: Tank, dx: number, dy: number) {
     let mx = 0;
     let my = 0;
-    if (dx !== 0 && !this.blocked(t.x + dx, t.y, t.r)) {
-      t.x += dx;
-      mx = dx;
-    }
-    if (dy !== 0 && !this.blocked(t.x, t.y + dy, t.r)) {
-      t.y += dy;
-      my = dy;
+    // 低帧率时单帧位移可能很大，拆成小步进避免直接判定为撞墙
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 4));
+    const sx = dx / steps;
+    const sy = dy / steps;
+    for (let i = 0; i < steps; i++) {
+      if (sx !== 0 && !this.blocked(t.x + sx, t.y, t.r)) {
+        t.x += sx;
+        mx = sx;
+      }
+      if (sy !== 0 && !this.blocked(t.x, t.y + sy, t.r)) {
+        t.y += sy;
+        my = sy;
+      }
     }
     return { x: mx !== 0, y: my !== 0 };
   }
 
   private resolveOverlap() {
-    const all = [this.player, ...this.enemies].filter((t) => t.spawnT <= 0);
+    const all = [...this.players, ...this.enemies].filter((t) => t.spawnT <= 0 && t.hp > 0);
     for (let i = 0; i < all.length; i++) {
       for (let j = i + 1; j < all.length; j++) {
         const a = all[i];
@@ -479,6 +555,7 @@ export class TankGame {
       vx: Math.cos(a) * t.bulletSpeed,
       vy: Math.sin(a) * t.bulletSpeed,
       team: t.team,
+      owner: t.team === 'player' ? t.ownerId : undefined,
       dmg: 1,
       life: 2.4,
       r: 3,
@@ -533,6 +610,7 @@ export class TankGame {
 
         if (code === BRICK) {
           this.tiles[row * COLS + col] = EMPTY;
+          this.tilesRev++;
           this.brickBurst(col, row);
           sfx.brick();
           this.addShake(1.6);
@@ -546,7 +624,7 @@ export class TankGame {
           break;
         }
 
-        const targets = b.team === 'player' ? this.enemies : [this.player];
+        const targets = b.team === 'player' ? this.enemies : this.players;
         for (const t of targets) {
           if (t.spawnT > 0 || t.hp <= 0) continue;
           const dx = t.x - b.x;
@@ -559,7 +637,7 @@ export class TankGame {
               sfx.hit();
               if (t.hp <= 0) kills.push(t);
             } else {
-              this.hurtPlayer();
+              this.hurtPlayer(t);
             }
             dead = true;
             break;
@@ -611,9 +689,8 @@ export class TankGame {
     }
   }
 
-  private hurtPlayer() {
-    const p = this.player;
-    if (p.invuln > 0 || p.spawnT > 0) return;
+  private hurtPlayer(p: Tank) {
+    if (p.invuln > 0 || p.spawnT > 0 || p.hp <= 0) return;
     p.hp -= 1;
     p.invuln = 1.25;
     p.hitFlash = 1;
@@ -622,7 +699,18 @@ export class TankGame {
     this.hitStop = Math.max(this.hitStop, 0.04);
     this.burst(p.x, p.y, 9, '#ff8f6b');
     sfx.hit();
-    if (p.hp <= 0) this.endGame('你的坦克被击毁');
+    if (p.hp <= 0) {
+      p.hp = 0;
+      this.explode(p.x, p.y, 1.8);
+      this.addShake(9);
+      if (this.coop) {
+        p.respawnT = 4;
+        this.float('重生 4s', p.x, p.y - 26, '#ffb59f');
+        if (this.players.every((q) => q.hp <= 0)) this.endGame('全员被击毁');
+      } else {
+        this.endGame('你的坦克被击毁');
+      }
+    }
     this.onHud();
   }
 
@@ -673,7 +761,8 @@ export class TankGame {
     this.overReason = reason;
     this.best = Math.max(this.best, this.score);
     this.addShake(14);
-    this.explode(this.player.x, this.player.y, 2.4);
+    const p = this.players[0];
+    if (p) this.explode(p.x, p.y, 2.4);
     sfx.gameOver();
     this.onGameOver(reason, this.score, this.best);
     this.onHud();
@@ -685,7 +774,7 @@ export class TankGame {
     let type: PowerupType = (['repair', 'shield', 'rapid', 'freeze'] as PowerupType[])[
       Math.floor(Math.random() * 4)
     ];
-    if (type === 'repair' && this.player.hp >= this.player.maxHp) type = 'rapid';
+    if (type === 'repair' && this.players.every((p) => p.hp >= p.maxHp)) type = 'rapid';
     this.powerups.push({
       x: clamp(x, 34, WIDTH - 34),
       y: clamp(y, 34, HEIGHT - 34),
@@ -696,22 +785,22 @@ export class TankGame {
   }
 
   private updatePowerups(dt: number) {
-    const p = this.player;
     this.powerups = this.powerups.filter((pu) => {
       pu.life -= dt;
       pu.t += dt;
       if (pu.life <= 0) return false;
-      if (p.hp <= 0) return true;
-      if (Math.hypot(pu.x - p.x, pu.y - p.y) < 26) {
-        this.applyPowerup(pu.type);
-        return false;
+      for (const p of this.players) {
+        if (p.hp <= 0) continue;
+        if (Math.hypot(pu.x - p.x, pu.y - p.y) < 26) {
+          this.applyPowerup(pu.type, p);
+          return false;
+        }
       }
       return true;
     });
   }
 
-  private applyPowerup(type: PowerupType) {
-    const p = this.player;
+  private applyPowerup(type: PowerupType, p: Tank) {
     switch (type) {
       case 'repair':
         p.hp = Math.min(p.maxHp, p.hp + 1);
@@ -802,11 +891,11 @@ export class TankGame {
 
   /* ---------------- 特效 ---------------- */
 
-  private addShake(v: number) {
+  addShake(v: number) {
     this.shake = Math.min(13, this.shake + v);
   }
 
-  private spark(x: number, y: number, color: string) {
+  spark(x: number, y: number, color: string) {
     for (let i = 0; i < 4; i++) {
       this.particles.push({
         x,
@@ -824,7 +913,7 @@ export class TankGame {
     }
   }
 
-  private dust(x: number, y: number) {
+  dust(x: number, y: number) {
     this.particles.push({
       x: x + (Math.random() - 0.5) * 10,
       y: y + (Math.random() - 0.5) * 10,
@@ -840,7 +929,7 @@ export class TankGame {
     });
   }
 
-  private burst(x: number, y: number, count: number, color: string) {
+  burst(x: number, y: number, count: number, color: string) {
     for (let i = 0; i < count; i++) {
       this.particles.push({
         x,
@@ -858,7 +947,7 @@ export class TankGame {
     }
   }
 
-  private explode(x: number, y: number, scale: number) {
+  explode(x: number, y: number, scale: number) {
     const count = Math.round(18 * scale);
     for (let i = 0; i < count; i++) {
       const a = Math.random() * Math.PI * 2;
@@ -917,7 +1006,7 @@ export class TankGame {
     }
   }
 
-  private float(text: string, x: number, y: number, color: string) {
+  float(text: string, x: number, y: number, color: string) {
     this.texts.push({ x, y, text, life: 1.1, color });
   }
 
@@ -940,6 +1029,15 @@ export class TankGame {
       t.y -= dt * 26;
       return t.life > 0;
     });
+  }
+
+  /** 联机客机只跑计时与特效，不做任何模拟 */
+  tickVisuals(dt: number) {
+    this.time += dt;
+    this.shake = Math.max(0, this.shake - dt * 32);
+    this.damageFlash = Math.max(0, this.damageFlash - dt * 2.4);
+    this.base.flash = Math.max(0, this.base.flash - dt * 3);
+    this.updateParticles(dt);
   }
 
   /** 供渲染层使用 */

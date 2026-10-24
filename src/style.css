@@ -309,6 +309,10 @@ kbd {
   gap: 5px;
 }
 
+.meter[hidden] {
+  display: none;
+}
+
 .pips {
   display: flex;
   gap: 4px;
@@ -547,6 +551,91 @@ kbd {
   color: #98a2b0;
 }
 
+/* ---------- 联机房间 ---------- */
+.room-code {
+  margin: 2px 0 14px;
+  padding-left: 12px;
+  font-family: var(--mono);
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: 12px;
+  color: #ffe3b0;
+  text-shadow: 0 0 28px rgba(242, 166, 59, 0.45);
+  user-select: text;
+}
+
+.room-note {
+  min-height: 20px;
+  margin: 0 0 22px;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  color: #98a2b0;
+}
+
+.room-note.ok {
+  color: #7fe0a8;
+}
+
+.room-error {
+  margin: 0 0 22px;
+  font-size: 13px;
+  color: #ff9a8a;
+}
+
+.room-code-input {
+  display: block;
+  width: 220px;
+  margin: 0 auto 20px;
+  padding: 14px 16px;
+  font-family: var(--mono);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 10px;
+  text-align: center;
+  text-transform: uppercase;
+  color: #f6fafd;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.room-code-input::placeholder {
+  letter-spacing: 8px;
+  color: rgba(198, 210, 224, 0.25);
+}
+
+.room-code-input:focus {
+  border-color: rgba(242, 166, 59, 0.65);
+  background: rgba(242, 166, 59, 0.06);
+}
+
+.room-back {
+  margin-top: 18px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: rgba(198, 210, 224, 0.5);
+  background: none;
+  border: none;
+}
+
+.room-back:hover {
+  color: #fff;
+}
+
+.btn-primary:disabled {
+  opacity: 0.4;
+  transform: none;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.pip.p2.on {
+  background: var(--accent-2);
+  box-shadow: 0 0 10px rgba(94, 200, 230, 0.5);
+}
+
 @media (max-width: 860px) {
   .stage {
     padding: 10px;
@@ -734,6 +823,23 @@ kbd {
 /* ---------- 竖屏提示（仅触屏竖屏出现） ---------- */
 .rotate-gate {
   display: none;
+}
+
+/* 竖屏或矮视口时画布高度被压得很扁，遮罩改为整屏弹层，避免按钮被裁掉 */
+@media (orientation: portrait) and (max-width: 860px), (max-height: 600px) {
+  .overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    padding: calc(58px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+      max(14px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    border-radius: 0;
+  }
+  /* 顶栏保持在弹层之上，返回大厅 / 音效仍可点击 */
+  .game-bar {
+    position: relative;
+    z-index: 20;
+  }
 }
 
 @media (orientation: portrait) and (pointer: coarse) {

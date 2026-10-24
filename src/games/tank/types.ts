@@ -7,6 +7,8 @@ export interface Tank {
   id: number;
   team: Team;
   kind: 'player' | EnemyKind;
+  /** 玩家坦克的归属（单人/房主为 p1，队友为 p2）；敌人为空 */
+  ownerId?: string;
   x: number;
   y: number;
   r: number;
@@ -25,6 +27,8 @@ export interface Tank {
   muzzle: number;
   tread: number;
   moving: boolean;
+  /** >0 表示阵亡后的复活倒计时（联机合作） */
+  respawnT: number;
   ai: { dir: number; retarget: number; blocked: number } | null;
 }
 
@@ -34,6 +38,8 @@ export interface Bullet {
   vx: number;
   vy: number;
   team: Team;
+  /** 发射者（玩家子弹用于分摊射击上限，不参与渲染） */
+  owner?: string;
   dmg: number;
   life: number;
   r: number;
