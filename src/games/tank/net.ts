@@ -54,6 +54,10 @@ export interface Snapshot {
   base: { x: number; y: number; hp: number; maxHp: number; flash: number };
   score: number;
   wave: number;
+  level: number;
+  levelWave: number;
+  gameMode: 'endless' | 'campaign';
+  cleared: boolean;
   mode: Mode;
   overReason: string;
   rapidT: number;
@@ -103,6 +107,10 @@ export function encodeSnapshot(g: TankGame, tick: number, sendTiles: boolean): S
     base: { ...g.base },
     score: g.score,
     wave: g.wave,
+    level: g.level,
+    levelWave: g.levelWave,
+    gameMode: g.gameMode,
+    cleared: g.cleared,
     mode: g.mode,
     overReason: g.overReason,
     rapidT: g.rapidT,
@@ -188,6 +196,10 @@ export class GuestView {
     g.texts = [];
     g.score = 0;
     g.wave = 0;
+    g.level = 0;
+    g.levelWave = 0;
+    g.gameMode = 'endless';
+    g.cleared = false;
     g.overReason = '';
     g.mode = 'playing';
     g.tilesRev = 0;
@@ -261,6 +273,10 @@ export class GuestView {
     g.base = { ...b.base };
     g.score = b.score;
     g.wave = b.wave;
+    g.level = b.level;
+    g.levelWave = b.levelWave;
+    g.gameMode = b.gameMode;
+    g.cleared = b.cleared;
     g.mode = b.mode;
     g.overReason = b.overReason;
     g.rapidT = b.rapidT;
@@ -311,7 +327,11 @@ export class GuestView {
     }
 
     if (next.wave !== prev.wave && next.wave > prev.wave) {
-      g.onBanner(`第 ${next.wave} 波`);
+      g.onBanner(
+        next.gameMode === 'campaign'
+          ? `第 ${next.level} 关 · 第 ${next.levelWave} 波`
+          : `第 ${next.wave} 波`
+      );
       sfx.wave();
     }
 

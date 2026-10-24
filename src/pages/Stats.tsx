@@ -89,7 +89,13 @@ export default function Stats() {
       sorter: (a, b) => a.score - b.score,
       render: (v: number) => <strong className="score-cell">{v}</strong>,
     },
-    { title: '波次', dataIndex: 'wave', align: 'right', width: 90 },
+    {
+      title: '进度',
+      dataIndex: 'wave',
+      align: 'right',
+      width: 100,
+      render: (_: number, r: GameRun) => (r.level ? `第 ${r.level} 关` : `第 ${r.wave} 波`),
+    },
     {
       title: '时长',
       dataIndex: 'duration',

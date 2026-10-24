@@ -1,23 +1,65 @@
 import { HEIGHT, WIDTH } from './constants';
 import { TankGame } from './game';
 import type { Controls } from './game';
+import { LEVELS } from './levels';
 import { drawGame } from './render';
 import { GuestView, encodeSnapshot } from './net';
 import type { Snapshot } from './net';
 import { Input } from '../../engine/input';
 import { TouchControls } from '../../engine/touch';
 import { sfx } from '../../engine/audio';
-import { addRun } from '../../data/runs';
+import { addRun, formatDuration } from '../../data/runs';
 import { RoomPanel } from '../../net/roomPanel';
 import { NetSession } from '../../net/session';
 import type { NetRole } from '../../net/protocol';
 import type { GameHandle, MountOptions } from '../types';
 
 const BEST_KEY = 'tank.best';
+const PROGRESS_KEY = 'tank.campaign';
 const NET_STEP = 1 / 30;
 
+/** 战役进度：已解锁关卡、每关最佳得分、是否十关通关、基地无敌偏好 */
+interface CampaignProgress {
+  unlocked: number;
+  best: Record<string, number>;
+  cleared: boolean;
+  invincible: boolean;
+}
+
 type PlayMode = 'solo' | 'host' | 'guest' | null;
-type OverlayName = 'menu' | 'room' | 'pause' | 'over' | 'net';
+type OverlayName =
+  | 'menu'
+  | 'campaign'
+  | 'room'
+  | 'pause'
+  | 'over'
+  | 'campaign-over'
+  | 'victory'
+  | 'net';
+
+const loadProgress = (): CampaignProgress => {
+  try {
+    const raw = localStorage.getItem(PROGRESS_KEY);
+    if (!raw) return { unlocked: 1, best: {}, cleared: false, invincible: false };
+    const parsed = JSON.parse(raw) as Partial<CampaignProgress>;
+    return {
+      unlocked: Math.min(LEVELS.length, Math.max(1, Number(parsed.unlocked) || 1)),
+      best: parsed.best && typeof parsed.best === 'object' ? parsed.best : {},
+      cleared: !!parsed.cleared,
+      invincible: !!parsed.invincible,
+    };
+  } catch {
+    return { unlocked: 1, best: {}, cleared: false, invincible: false };
+  }
+};
+
+/** 通关评级：按本次战役重试次数评定 */
+const rankForRetries = (retries: number) => {
+  if (retries === 0) return 'S';
+  if (retries <= 2) return 'A';
+  if (retries <= 5) return 'B';
+  return 'C';
+};
 
 type GameMsg =
   | { t: 'start' }
@@ -35,6 +77,10 @@ export function mount(host: HTMLElement, opts: MountOptions): GameHandle {
           <div class="hud-item">
             <span class="hud-label">得分</span>
             <span class="hud-value" data-score>0</span>
+          </div>
+          <div class="hud-item" data-level-item hidden>
+            <span class="hud-label">关卡</span>
+            <span class="hud-value" data-level>1/10</span>
           </div>
           <div class="hud-item">
             <span class="hud-label">波次</span>
@@ -59,7 +105,7 @@ export function mount(host: HTMLElement, opts: MountOptions): GameHandle {
               <div class="pips" data-armor2></div>
             </div>
             <div class="meter">
-              <span class="hud-label">基地</span>
+              <span class="hud-label" data-base-label>基地</span>
               <div class="pips" data-base></div>
             </div>
           </div>
@@ -72,7 +118,7 @@ export function mount(host: HTMLElement, opts: MountOptions): GameHandle {
         <div class="ov-card">
           <p class="ov-kicker">TANK BATTLE</p>
           <h2>坦克大战</h2>
-          <p class="ov-desc">守住基地，击退一波又一波装甲部队。可以单人作战，也可以在同一局域网内双人合作。</p>
+          <p class="ov-desc">战役模式共 10 关，每关三波，终波迎战 Boss；无尽模式一波接一波，考验你的极限。也可在同一局域网内双人合作。</p>
           <div class="ov-keys" data-keys>
             <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>移动</span></div>
             <div><kbd>鼠标</kbd><span>瞄准</span></div>
@@ -80,8 +126,26 @@ export function mount(host: HTMLElement, opts: MountOptions): GameHandle {
             <div><kbd>Esc</kbd><span>暂停</span></div>
           </div>
           <div class="btn-row">
-            <button class="btn-primary" type="button" data-action="start">单人作战</button>
+            <button class="btn-primary" type="button" data-action="campaign">战役模式</button>
+            <button class="btn-secondary" type="button" data-action="endless">无尽模式</button>
             <button class="btn-secondary" type="button" data-action="coop">双人合作 · 局域网</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay hidden" data-ov="campaign">
+        <div class="ov-card ov-wide">
+          <p class="ov-kicker">CAMPAIGN</p>
+          <h2>战役模式</h2>
+          <p class="ov-desc">共 10 关，每关三波。每关终波追加一个 Boss，第十关还会出现精英。失败后可从本关重试。</p>
+          <label class="campaign-opt">
+            <input type="checkbox" data-invincible>
+            <span>基地无敌</span>
+            <em>降低难度：基地不会被击毁</em>
+          </label>
+          <div class="level-grid" data-levels></div>
+          <div class="btn-row">
+            <button class="btn-secondary" type="button" data-action="menu">返回</button>
           </div>
         </div>
       </div>
@@ -129,6 +193,56 @@ export function mount(host: HTMLElement, opts: MountOptions): GameHandle {
         </div>
       </div>
 
+      <div class="overlay hidden" data-ov="campaign-over">
+        <div class="ov-card">
+          <p class="ov-kicker">DEFEAT</p>
+          <h2>战斗结束</h2>
+          <p class="ov-reason" data-c-reason></p>
+          <div class="ov-stats">
+            <div class="ov-stat">
+              <span class="hud-label">关卡</span>
+              <strong data-c-level>第 1 关</strong>
+            </div>
+            <div class="ov-stat">
+              <span class="hud-label">本局得分</span>
+              <strong class="accent" data-c-score>0</strong>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-primary" type="button" data-action="retry">重试本关</button>
+            <button class="btn-secondary" type="button" data-action="restart-campaign">从第 1 关再来</button>
+            <button class="btn-secondary" type="button" data-action="exit">返回大厅</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay hidden" data-ov="victory">
+        <div class="ov-card">
+          <p class="ov-kicker">VICTORY</p>
+          <h2>全部通关</h2>
+          <p class="ov-reason">十关全部拿下，装甲部队已被彻底击退。</p>
+          <div class="ov-stats">
+            <div class="ov-stat">
+              <span class="hud-label">总分</span>
+              <strong data-v-score>0</strong>
+            </div>
+            <div class="ov-stat">
+              <span class="hud-label">用时</span>
+              <strong data-v-time>0:00</strong>
+            </div>
+            <div class="ov-stat">
+              <span class="hud-label">评级</span>
+              <strong class="accent" data-v-rank>C</strong>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-primary" type="button" data-action="restart-campaign">再打一次</button>
+            <button class="btn-secondary" type="button" data-action="level-select">选择关卡</button>
+            <button class="btn-secondary" type="button" data-action="exit">返回大厅</button>
+          </div>
+        </div>
+      </div>
+
       <div class="overlay hidden" data-ov="net">
         <div class="ov-card">
           <p class="ov-kicker">DISCONNECTED</p>
@@ -150,12 +264,15 @@ export function mount(host: HTMLElement, opts: MountOptions): GameHandle {
   const el = {
     score: host.querySelector<HTMLElement>('[data-score]')!,
     wave: host.querySelector<HTMLElement>('[data-wave]')!,
+    levelItem: host.querySelector<HTMLElement>('[data-level-item]')!,
+    level: host.querySelector<HTMLElement>('[data-level]')!,
     best: host.querySelector<HTMLElement>('[data-best]')!,
     p1Label: host.querySelector<HTMLElement>('[data-p1-label]')!,
     armor: host.querySelector<HTMLElement>('[data-armor]')!,
     mate: host.querySelector<HTMLElement>('[data-mate]')!,
     armor2: host.querySelector<HTMLElement>('[data-armor2]')!,
     base: host.querySelector<HTMLElement>('[data-base]')!,
+    baseLabel: host.querySelector<HTMLElement>('[data-base-label]')!,
     hint: host.querySelector<HTMLElement>('[data-hint]')!,
     banner: host.querySelector<HTMLElement>('[data-banner]')!,
     reason: host.querySelector<HTMLElement>('[data-reason]')!,
@@ -165,6 +282,14 @@ export function mount(host: HTMLElement, opts: MountOptions): GameHandle {
     pauseDesc: host.querySelector<HTMLElement>('[data-pause-desc]')!,
     restartBtn: host.querySelector<HTMLElement>('[data-restart]')!,
     netReason: host.querySelector<HTMLElement>('[data-net-reason]')!,
+    levels: host.querySelector<HTMLElement>('[data-levels]')!,
+    invincible: host.querySelector<HTMLInputElement>('[data-invincible]')!,
+    cReason: host.querySelector<HTMLElement>('[data-c-reason]')!,
+    cLevel: host.querySelector<HTMLElement>('[data-c-level]')!,
+    cScore: host.querySelector<HTMLElement>('[data-c-score]')!,
+    vScore: host.querySelector<HTMLElement>('[data-v-score]')!,
+    vTime: host.querySelector<HTMLElement>('[data-v-time]')!,
+    vRank: host.querySelector<HTMLElement>('[data-v-rank]')!,
   };
 
   if (touch.enabled) {
@@ -192,6 +317,44 @@ export function mount(host: HTMLElement, opts: MountOptions): GameHandle {
   let snapTick = 0;
   let sentTilesRev = -1;
   let startHintTimer = 0;
+  /** 本次战役累计重试次数（用于通关评级） */
+  let campaignRetries = 0;
+
+  /* ---------------- 战役进度 ---------------- */
+  const progress = loadProgress();
+
+  const saveProgress = () => localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+
+  const renderLevels = () => {
+    el.levels.innerHTML = LEVELS.map((def) => {
+      const locked = def.id > progress.unlocked;
+      const best = progress.best[String(def.id)];
+      return `<button class="level-card${locked ? ' locked' : ''}" type="button" data-level="${
+        def.id
+      }"${locked ? ' disabled' : ''}>
+        <span class="level-no">${String(def.id).padStart(2, '0')}</span>
+        <span class="level-name">${def.name}</span>
+        <span class="level-best">${locked ? '未解锁' : best ? `最佳 ${best}` : '尚未通关'}</span>
+      </button>`;
+    }).join('');
+  };
+  renderLevels();
+
+  el.invincible.checked = progress.invincible;
+  el.invincible.addEventListener('change', () => {
+    progress.invincible = el.invincible.checked;
+    saveProgress();
+    sfx.click();
+  });
+
+  const recordLevelClear = (level: number) => {
+    const key = String(level);
+    if (game.score > (progress.best[key] ?? 0)) progress.best[key] = game.score;
+    if (level >= progress.unlocked && level < LEVELS.length) progress.unlocked = level + 1;
+    if (level === LEVELS.length) progress.cleared = true;
+    saveProgress();
+    renderLevels();
+  };
 
   /* ---------------- 画布尺寸 ---------------- */
   let scaleX = 1;
@@ -250,15 +413,25 @@ export function mount(host: HTMLElement, opts: MountOptions): GameHandle {
     roomPanel.reset();
   };
 
+  const openCampaign = () => {
+    sfx.unlock();
+    sfx.click();
+    renderLevels();
+    showOverlay('campaign');
+  };
+
   /* ---------------- 对局开始 ---------------- */
   const resetHudCache = () => {
     cache.score = -1;
-    cache.wave = -1;
+    cache.waveText = '';
     cache.best = -1;
     cache.armor = -1;
     cache.armor2 = -1;
     cache.base = -1;
     cache.count = -1;
+    cache.mode = '';
+    cache.level = -1;
+    cache.baseInv = null;
   };
 
   function startSolo() {
@@ -271,6 +444,27 @@ export function mount(host: HTMLElement, opts: MountOptions): GameHandle {
     startedAt = Date.now();
     resetHudCache();
     game.begin(false);
+    game.best = Math.max(game.best, game.score);
+    el.restartBtn.hidden = false;
+    el.pauseDesc.textContent = touch.enabled ? '点击继续，返回战场。' : '按 Esc 或点击继续，返回战场。';
+    showOverlay(null);
+    setPlayingChrome(true);
+    blurActive();
+    updateHud(true);
+  }
+
+  function startCampaignAt(level: number) {
+    if (level < 1 || level > LEVELS.length || level > progress.unlocked) return;
+    sfx.unlock();
+    sfx.click();
+    mode = 'solo';
+    guest = null;
+    view = game;
+    game.localOwner = 'p1';
+    startedAt = Date.now();
+    campaignRetries = 0;
+    resetHudCache();
+    game.beginCampaign(level, progress.invincible);
     game.best = Math.max(game.best, game.score);
     el.restartBtn.hidden = false;
     el.pauseDesc.textContent = touch.enabled ? '点击继续，返回战场。' : '按 Esc 或点击继续，返回战场。';
@@ -387,9 +581,34 @@ export function mount(host: HTMLElement, opts: MountOptions): GameHandle {
       session?.send({ t: 'restart' });
       return;
     }
-    startedAt = Date.now();
     resetHudCache();
-    game.begin(mode === 'host');
+    if (game.gameMode === 'campaign') {
+      // 战役：默认从本关重试，保留进入本关时的比分
+      campaignRetries++;
+      game.retryLevel();
+    } else {
+      startedAt = Date.now();
+      game.begin(mode === 'host');
+    }
+    showOverlay(null);
+    setPlayingChrome(true);
+    blurActive();
+    updateHud(true);
+  }
+
+  function restartCampaign() {
+    if (mode === 'guest') {
+      session?.send({ t: 'restart' });
+      return;
+    }
+    if (game.gameMode !== 'campaign') {
+      restartRound();
+      return;
+    }
+    startedAt = Date.now();
+    campaignRetries = 0;
+    resetHudCache();
+    game.restartCampaign();
     showOverlay(null);
     setPlayingChrome(true);
     blurActive();
@@ -400,18 +619,36 @@ export function mount(host: HTMLElement, opts: MountOptions): GameHandle {
     const bestNow = Math.max(game.best, score);
     localStorage.setItem(BEST_KEY, String(bestNow));
     game.best = bestNow;
+    const campaign = view.gameMode === 'campaign';
+    const duration = startedAt ? Math.round((Date.now() - startedAt) / 1000) : 0;
     addRun({
       gameId: 'tank',
       gameTitle: '坦克大战',
       score,
       wave: view.wave,
-      duration: startedAt ? Math.round((Date.now() - startedAt) / 1000) : 0,
-      result: reason,
+      level: campaign ? view.level : undefined,
+      mode: campaign ? 'campaign' : 'endless',
+      cleared: view.cleared,
+      duration,
+      result: campaign ? `第 ${view.level} 关 · ${reason}` : reason,
     });
-    el.reason.textContent = reason;
-    el.final.textContent = String(score);
-    el.bestOver.textContent = String(bestNow);
-    showOverlay('over');
+
+    if (campaign && view.cleared) {
+      el.vScore.textContent = String(score);
+      el.vTime.textContent = formatDuration(duration);
+      el.vRank.textContent = rankForRetries(campaignRetries);
+      showOverlay('victory');
+    } else if (campaign) {
+      el.cReason.textContent = reason;
+      el.cLevel.textContent = `第 ${view.level} 关 / ${LEVELS.length}`;
+      el.cScore.textContent = String(score);
+      showOverlay('campaign-over');
+    } else {
+      el.reason.textContent = reason;
+      el.final.textContent = String(score);
+      el.bestOver.textContent = String(bestNow);
+      showOverlay('over');
+    }
     setPlayingChrome(false);
     updateHud(true);
   }
@@ -472,15 +709,25 @@ export function mount(host: HTMLElement, opts: MountOptions): GameHandle {
   });
 
   frame.addEventListener('click', (e) => {
-    const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-action]');
-    if (!btn) return;
-    const action = btn.dataset.action;
-    if (action === 'start') startSolo();
-    else if (action === 'coop') openRoom();
-    else if (action === 'restart') restartRound();
-    else if (action === 'resume') resume();
-    else if (action === 'pause') pause();
-    else if (action === 'exit') exitToLobby();
+    const target = e.target as HTMLElement;
+    const btn = target.closest<HTMLElement>('[data-action]');
+    if (btn) {
+      const action = btn.dataset.action;
+      if (action === 'start' || action === 'endless') startSolo();
+      else if (action === 'campaign' || action === 'level-select') openCampaign();
+      else if (action === 'menu') {
+        frame.classList.remove('is-playing');
+        showOverlay('menu');
+      } else if (action === 'coop') openRoom();
+      else if (action === 'restart' || action === 'retry') restartRound();
+      else if (action === 'restart-campaign') restartCampaign();
+      else if (action === 'resume') resume();
+      else if (action === 'pause') pause();
+      else if (action === 'exit') exitToLobby();
+      return;
+    }
+    const levelBtn = target.closest<HTMLElement>('[data-level]');
+    if (levelBtn) startCampaignAt(Number(levelBtn.dataset.level));
   });
 
   /* ---------------- 游戏回调 ---------------- */
@@ -488,8 +735,21 @@ export function mount(host: HTMLElement, opts: MountOptions): GameHandle {
 
   game.onGameOver = (reason, score) => reportRun(reason, score);
 
+  game.onLevelClear = (level) => recordLevelClear(level);
+
   /* ---------------- HUD ---------------- */
-  const cache = { score: -1, wave: -1, best: -1, armor: -1, armor2: -1, base: -1, count: -1 };
+  const cache = {
+    score: -1,
+    waveText: '',
+    best: -1,
+    armor: -1,
+    armor2: -1,
+    base: -1,
+    count: -1,
+    mode: '',
+    level: -1,
+    baseInv: null as boolean | null,
+  };
 
   const renderPips = (container: HTMLElement, count: number, total: number, cls: string) => {
     if (container.childElementCount !== total) {
@@ -508,9 +768,18 @@ export function mount(host: HTMLElement, opts: MountOptions): GameHandle {
       cache.score = view.score;
       el.score.textContent = String(view.score);
     }
-    if (force || view.wave !== cache.wave) {
-      cache.wave = view.wave;
-      el.wave.textContent = String(view.wave);
+    if (force || view.gameMode !== cache.mode) {
+      cache.mode = view.gameMode;
+      el.levelItem.hidden = view.gameMode !== 'campaign';
+    }
+    if (force || view.level !== cache.level) {
+      cache.level = view.level;
+      el.level.textContent = `${view.level}/${LEVELS.length}`;
+    }
+    const waveText = view.gameMode === 'campaign' ? `${view.levelWave}/3` : String(view.wave);
+    if (force || waveText !== cache.waveText) {
+      cache.waveText = waveText;
+      el.wave.textContent = waveText;
     }
     const bestNow = Math.max(game.best, view.score);
     if (force || bestNow !== cache.best) {
@@ -543,6 +812,13 @@ export function mount(host: HTMLElement, opts: MountOptions): GameHandle {
     if (force || baseHp !== cache.base) {
       cache.base = baseHp;
       renderPips(el.base, baseHp, view.base.maxHp, 'base');
+    }
+
+    const baseInv = view.gameMode === 'campaign' && view.baseInvincible;
+    if (force || baseInv !== cache.baseInv) {
+      cache.baseInv = baseInv;
+      el.baseLabel.textContent = baseInv ? '基地 · 无敌' : '基地';
+      el.baseLabel.classList.toggle('shield', baseInv);
     }
   }
   game.onHud = () => updateHud();

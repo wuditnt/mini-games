@@ -1,5 +1,5 @@
 export type Team = 'player' | 'enemy';
-export type EnemyKind = 'scout' | 'grunt' | 'heavy';
+export type EnemyKind = 'scout' | 'grunt' | 'heavy' | 'boss' | 'elite';
 export type PowerupType = 'repair' | 'shield' | 'rapid' | 'freeze';
 export type Mode = 'menu' | 'playing' | 'paused' | 'over';
 
@@ -29,6 +29,8 @@ export interface Tank {
   moving: boolean;
   /** >0 表示阵亡后的复活倒计时（联机合作） */
   respawnT: number;
+  /** 击毁该敌人获得的分数（Boss / 精英随关卡缩放） */
+  score?: number;
   ai: { dir: number; retarget: number; blocked: number } | null;
 }
 

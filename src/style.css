@@ -545,6 +545,114 @@ kbd {
   color: var(--accent);
 }
 
+.hud-item[hidden] {
+  display: none;
+}
+
+/* ---------- 战役关卡选择 ---------- */
+.ov-card.ov-wide {
+  width: min(560px, 100%);
+}
+
+.level-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  gap: 8px;
+  margin: 0 0 20px;
+  max-height: min(46vh, 320px);
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.level-card {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  color: #dbe4ef;
+  font-family: var(--mono);
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+
+.level-card:hover:not(:disabled) {
+  background: rgba(242, 166, 59, 0.12);
+  border-color: rgba(242, 166, 59, 0.55);
+  transform: translateY(-1px);
+}
+
+.level-card:disabled {
+  cursor: not-allowed;
+}
+
+.level-no {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--accent);
+}
+
+.level-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.level-best {
+  font-size: 10px;
+  color: #8b94a3;
+  font-variant-numeric: tabular-nums;
+}
+
+.level-card.locked {
+  opacity: 0.42;
+}
+
+.level-card.locked .level-no,
+.level-card.locked .level-best {
+  color: #79828f;
+}
+
+.campaign-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: rgba(108, 204, 245, 0.06);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: #dbe4ef;
+  cursor: pointer;
+}
+
+.campaign-opt input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: #6cccf5;
+  cursor: pointer;
+}
+
+.campaign-opt em {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 11px;
+  color: #8b94a3;
+}
+
+@media (max-width: 520px) {
+  .campaign-opt em {
+    display: none;
+  }
+}
+
+.hud-label.shield {
+  color: #8fe3ff;
+}
+
 .ov-reason {
   margin: 0 0 20px;
   font-size: 13px;

@@ -19,6 +19,8 @@ const ENEMY_COLORS: Record<EnemyKind, { body: string; dark: string; trim: string
   scout: { body: '#e0735f', dark: '#87362c', trim: '#ffb59f' },
   grunt: { body: '#d0556b', dark: '#7a2337', trim: '#ff9fb2' },
   heavy: { body: '#a06cd5', dark: '#523172', trim: '#d9b6ff' },
+  boss: { body: '#9c4438', dark: '#3d1612', trim: '#ffbf6b' },
+  elite: { body: '#e8c65c', dark: '#7a5611', trim: '#fff3b5' },
 };
 
 const POWER_COLORS: Record<PowerupType, string> = {
@@ -27,6 +29,8 @@ const POWER_COLORS: Record<PowerupType, string> = {
   rapid: '#f8b84f',
   freeze: '#8fd4ff',
 };
+
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 function roundRect(
   ctx: CanvasRenderingContext2D,
@@ -177,6 +181,21 @@ function drawBase(ctx: CanvasRenderingContext2D, g: TankGame, t: number) {
   ctx.save();
   ctx.translate(x, y);
 
+  // 基地无敌：显示青色护盾
+  if (g.baseInvincible) {
+    const shield = 0.5 + 0.5 * Math.sin(t * 3);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.beginPath();
+    ctx.arc(0, 0, half + 10 + shield * 3, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(108, 204, 245, ${0.06 + shield * 0.05})`;
+    ctx.fill();
+    ctx.strokeStyle = `rgba(140, 224, 255, ${0.3 + shield * 0.25})`;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.restore();
+  }
+
   ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
   roundRect(ctx, -half + 4, -half + 8, s, s, 14);
   ctx.fill();
@@ -256,22 +275,42 @@ function drawTank(ctx: CanvasRenderingContext2D, g: TankGame, tank: Tank, t: num
       ? { body: '#d9eef8', dark: '#7ea8bd', trim: '#5fd0e6' }
       : { body: PALETTE.playerHull, dark: '#8795a7', trim: PALETTE.playerTrim };
 
+  const isBoss = tank.kind === 'boss';
+  const isElite = tank.kind === 'elite';
+  const isBig = isBoss || isElite;
+
   const scale = (tank.r / 14) * 1.2;
   const hl = 26 * scale;
   const hw = 20 * scale;
 
   if (tank.spawnT > 0) {
-    const k = 1 - tank.spawnT / 0.85;
+    const spawnMax = isBig ? 1.3 : 0.85;
+    const k = clamp01(1 - tank.spawnT / spawnMax);
     ctx.save();
     ctx.globalAlpha = 0.25 + k * 0.5;
-    ctx.strokeStyle = '#ffb15c';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = isBig ? '#ff8a5c' : '#ffb15c';
+    ctx.lineWidth = isBig ? 3 : 2;
     ctx.beginPath();
-    ctx.arc(tank.x, tank.y, (1 - k) * 34 + 8, 0, Math.PI * 2);
+    ctx.arc(tank.x, tank.y, (1 - k) * (isBig ? 56 : 34) + 8, 0, Math.PI * 2);
     ctx.stroke();
     ctx.beginPath();
-    ctx.arc(tank.x, tank.y, 34, 0, Math.PI * 2);
+    ctx.arc(tank.x, tank.y, isBig ? 56 : 34, 0, Math.PI * 2);
     ctx.strokeStyle = 'rgba(255, 177, 92, 0.22)';
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Boss / 精英的气场光环
+  if (isBig) {
+    const pulse = 0.5 + 0.5 * Math.sin(t * 4);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = isBoss
+      ? `rgba(255, 106, 74, ${0.22 + pulse * 0.28})`
+      : `rgba(255, 214, 106, ${0.2 + pulse * 0.26})`;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(tank.x, tank.y, tank.r + 6 + pulse * 4, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
   }
@@ -326,6 +365,21 @@ function drawTank(ctx: CanvasRenderingContext2D, g: TankGame, tank: Tank, t: num
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
   ctx.lineWidth = 1;
   ctx.stroke();
+
+  // Boss / 精英的附加装甲
+  if (isBig) {
+    ctx.strokeStyle = isBoss ? 'rgba(255, 191, 107, 0.55)' : 'rgba(255, 243, 181, 0.6)';
+    ctx.lineWidth = 1.4;
+    roundRect(ctx, -hl * 0.78, -hw * 0.5, hl * 1.3, hw, 4 * scale);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+    for (const px of [-hl * 0.5, 0, hl * 0.5]) {
+      ctx.beginPath();
+      ctx.arc(px, -hw * 0.22, 1.8 * scale, 0, Math.PI * 2);
+      ctx.arc(px, hw * 0.22, 1.8 * scale, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
   ctx.restore();
 
   // 炮塔
@@ -414,14 +468,30 @@ function drawTank(ctx: CanvasRenderingContext2D, g: TankGame, tank: Tank, t: num
     ctx.globalAlpha = 1;
   }
 
-  // 敌方血条
-  if (isEnemy && tank.hp < tank.maxHp) {
-    const w = 28;
-    const y = -hw - 12;
+  // 敌方血条（Boss / 精英常驻显示，并标注身份）
+  if (isEnemy && (tank.hp < tank.maxHp || isBig)) {
+    const w = isBig ? 54 : 28;
+    const h = isBig ? 5 : 3;
+    const y = -hw - (isBig ? 16 : 12);
     ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-    ctx.fillRect(-w / 2, y, w, 3);
-    ctx.fillStyle = tank.kind === 'heavy' ? '#c9a2ff' : '#ff9a9a';
-    ctx.fillRect(-w / 2, y, (w * tank.hp) / tank.maxHp, 3);
+    ctx.fillRect(-w / 2, y, w, h);
+    ctx.fillStyle = isBoss
+      ? '#ff8a5c'
+      : isElite
+        ? '#ffe27a'
+        : tank.kind === 'heavy'
+          ? '#c9a2ff'
+          : '#ff9a9a';
+    ctx.fillRect(-w / 2, y, (w * Math.max(0, tank.hp)) / tank.maxHp, h);
+    if (isBig) {
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(-w / 2, y, w, h);
+      ctx.fillStyle = isBoss ? '#ffb98c' : '#ffe9a3';
+      ctx.font = '700 9px "SF Mono", Consolas, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(isBoss ? 'BOSS' : '精英', 0, y - 4);
+    }
   }
 
   ctx.restore();

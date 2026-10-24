@@ -7,6 +7,11 @@ export interface GameRun {
   duration: number;
   result: string;
   at: number;
+  /** 战役模式：进行到的关卡 */
+  level?: number;
+  mode?: 'endless' | 'campaign';
+  /** 战役模式：十关是否全部通关 */
+  cleared?: boolean;
 }
 
 export const RUNS_EVENT = 'arcade:runs';

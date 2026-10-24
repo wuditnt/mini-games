@@ -27,6 +27,7 @@ import type {
   Tank,
   Team,
 } from './types';
+import { LEVELS, waveEnemies } from './levels';
 import { sfx } from '../../engine/audio';
 
 export interface Controls {
@@ -50,7 +51,22 @@ const ENEMY_STATS: Record<EnemyKind, EnemyStats> = {
   scout: { hp: 1, speed: 124, fireDelay: 1.5, bulletSpeed: 300, radius: 14, score: 120 },
   grunt: { hp: 2, speed: 88, fireDelay: 1.1, bulletSpeed: 340, radius: 16, score: 220 },
   heavy: { hp: 3, speed: 60, fireDelay: 1.55, bulletSpeed: 380, radius: 18, score: 400 },
+  boss: { hp: 10, speed: 52, fireDelay: 1.2, bulletSpeed: 400, radius: 24, score: 900 },
+  elite: { hp: 34, speed: 104, fireDelay: 0.55, bulletSpeed: 520, radius: 19, score: 3200 },
 };
+
+/** Boss 血量与火力随关卡递增；精英只在第十关出现，使用固定数值 */
+function enemyStats(kind: EnemyKind, level: number): EnemyStats {
+  const base = ENEMY_STATS[kind];
+  if (kind !== 'boss') return base;
+  const k = Math.max(0, level - 1);
+  return {
+    ...base,
+    hp: base.hp + k * 3,
+    fireDelay: Math.max(0.72, base.fireDelay - k * 0.045),
+    score: base.score + level * 180,
+  };
+}
 
 const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
 
@@ -93,8 +109,8 @@ function createPlayer(ownerId: string, x: number, y: number): Tank {
   };
 }
 
-function createEnemy(kind: EnemyKind, x: number, y: number): Tank {
-  const s = ENEMY_STATS[kind];
+function createEnemy(kind: EnemyKind, x: number, y: number, level = 1): Tank {
+  const s = enemyStats(kind, level);
   return {
     id: uid++,
     team: 'enemy',
@@ -110,13 +126,14 @@ function createEnemy(kind: EnemyKind, x: number, y: number): Tank {
     cooldown: 0.8,
     fireDelay: s.fireDelay,
     bulletSpeed: s.bulletSpeed,
-    spawnT: 0.85,
+    spawnT: kind === 'boss' || kind === 'elite' ? 1.3 : 0.85,
     invuln: 0,
     hitFlash: 0,
     muzzle: 0,
     tread: 0,
     moving: false,
     respawnT: 0,
+    score: s.score,
     ai: { dir: Math.PI / 2, retarget: 0, blocked: 0 },
   };
 }
@@ -144,6 +161,15 @@ export class TankGame {
   wave = 0;
   time = 0;
 
+  /** 玩法模式：endless 无尽波次 / campaign 战役关卡 */
+  gameMode: 'endless' | 'campaign' = 'endless';
+  /** 战役当前关卡（1 起，无尽模式为 0） */
+  level = 0;
+  /** 战役当前关卡内的波次（1-3） */
+  levelWave = 0;
+  /** 十关全部通关 */
+  cleared = false;
+
   /** 玩家坦克（单人 1 辆，联机合作 2 辆），ownerId 区分归属 */
   players: Tank[] = [createPlayer('p1', PLAYER_START.x, PLAYER_START.y)];
   coop = false;
@@ -158,6 +184,8 @@ export class TankGame {
   texts: FloatText[] = [];
 
   base: BaseState = { ...BASE_CENTER, hp: 3, maxHp: 3, flash: 0 };
+  /** 战役模式的降低难度选项：基地免疫伤害 */
+  baseInvincible = false;
 
   controls: Controls = {
     mx: 0,
@@ -177,11 +205,17 @@ export class TankGame {
   onHud: () => void = () => {};
   onBanner: (text: string) => void = () => {};
   onGameOver: (reason: string, score: number, best: number) => void = () => {};
+  /** 战役模式：某一关通过（用于记录进度） */
+  onLevelClear: (level: number) => void = () => {};
 
   private spawnQueue: EnemyKind[] = [];
   private spawnTimer = 0;
   private spawnIndex = 0;
   private intermission = 0;
+  /** 关卡间隙结束后要进入的下一关 */
+  private nextLevel = 0;
+  /** 本关开始时的比分，重试本关时回滚 */
+  private levelStartScore = 0;
   private remoteControls = new Map<string, Controls>();
 
   constructor(best = 0) {
@@ -189,11 +223,12 @@ export class TankGame {
     this.reset();
   }
 
-  reset() {
+  /** 重建战场（地形、单位、基地与特效），不重置比分与计时 */
+  private rebuild(map: string[]) {
     this.tiles = new Uint8Array(COLS * ROWS);
     for (let row = 0; row < ROWS; row++) {
       for (let col = 0; col < COLS; col++) {
-        const ch = MAP[row][col];
+        const ch = map[row][col];
         this.tiles[row * COLS + col] =
           ch === '#'
             ? BRICK
@@ -212,20 +247,16 @@ export class TankGame {
     this.particles = [];
     this.powerups = [];
     this.texts = [];
-
-    this.score = 0;
-    this.wave = 0;
-    this.time = 0;
+    this.spawnQueue = [];
+    this.spawnTimer = 0;
+    this.spawnIndex = 0;
+    this.intermission = 0;
+    this.nextLevel = 0;
     this.shake = 0;
     this.hitStop = 0;
     this.rapidT = 0;
     this.freezeT = 0;
     this.damageFlash = 0;
-    this.overReason = '';
-    this.spawnQueue = [];
-    this.spawnTimer = 0;
-    this.spawnIndex = 0;
-    this.intermission = 0;
 
     this.base = { ...BASE_CENTER, hp: 3, maxHp: 3, flash: 0 };
     const offset = this.coop ? 68 : 0;
@@ -233,16 +264,135 @@ export class TankGame {
     if (this.coop) {
       this.players.push(createPlayer('p2', PLAYER_START.x + offset, PLAYER_START.y));
     }
-    this.remoteControls.clear();
-    this.tilesRev++;
     this.controls.firing = false;
+    this.tilesRev++;
+  }
+
+  reset() {
+    this.rebuild(MAP);
+    this.score = 0;
+    this.wave = 0;
+    this.time = 0;
+    this.overReason = '';
+    this.cleared = false;
+    this.level = 0;
+    this.levelWave = 0;
+    this.levelStartScore = 0;
+    this.baseInvincible = false;
+    this.remoteControls.clear();
   }
 
   begin(coop = false) {
     this.coop = coop;
+    this.gameMode = 'endless';
     this.reset();
     this.mode = 'playing';
     this.startWave(1);
+    this.onHud();
+  }
+
+  /** 战役模式：从指定关卡开始新的一轮（可开启基地无敌） */
+  beginCampaign(startLevel = 1, baseInvincible = false) {
+    this.coop = false;
+    this.gameMode = 'campaign';
+    this.baseInvincible = baseInvincible;
+    this.cleared = false;
+    this.overReason = '';
+    this.score = 0;
+    this.time = 0;
+    this.level = clamp(Math.round(startLevel), 1, LEVELS.length);
+    this.levelStartScore = 0;
+    this.mode = 'playing';
+    this.startLevel(this.level);
+    this.onHud();
+  }
+
+  /** 战役：重试当前关卡（比分为本关开始时） */
+  retryLevel() {
+    if (this.gameMode !== 'campaign') return;
+    this.score = this.levelStartScore;
+    this.cleared = false;
+    this.overReason = '';
+    this.mode = 'playing';
+    this.startLevel(this.level);
+    this.onHud();
+  }
+
+  /** 战役：从第 1 关重新开始 */
+  restartCampaign() {
+    if (this.gameMode !== 'campaign') return;
+    this.score = 0;
+    this.time = 0;
+    this.cleared = false;
+    this.overReason = '';
+    this.mode = 'playing';
+    this.level = 1;
+    this.levelStartScore = 0;
+    this.startLevel(1);
+    this.onHud();
+  }
+
+  /** 载入某一关：换地形、重置基地与玩家，开始第一波 */
+  private startLevel(n: number) {
+    const def = LEVELS[n - 1];
+    this.level = n;
+    this.levelStartScore = this.score;
+    this.rebuild(def.map);
+    this.startLevelWave(1);
+  }
+
+  private startLevelWave(w: number) {
+    const def = LEVELS[this.level - 1];
+    this.levelWave = w;
+    this.wave = (this.level - 1) * 3 + w;
+    const queue = waveEnemies(def, w);
+    for (let i = queue.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [queue[i], queue[j]] = [queue[j], queue[i]];
+    }
+    // 终波压轴：Boss 最后登场，第十关再追加一个精英
+    if (w === 3) {
+      queue.push('boss');
+      if (def.elite) queue.push('elite');
+    }
+    this.spawnQueue = queue;
+    this.spawnTimer = 0.7;
+    this.intermission = 0;
+    this.onBanner(
+      w === 3 ? `第 ${this.level} 关 · 最终波` : `第 ${this.level} 关 · 第 ${w} 波`
+    );
+    sfx.wave();
+    this.onHud();
+  }
+
+  /** 战役：当前关全部清空 */
+  private completeLevel() {
+    const bonus = 300 * this.level;
+    this.score += bonus;
+    this.texts.push({
+      x: WIDTH / 2,
+      y: HEIGHT / 2 - 72,
+      text: `关卡奖励 +${bonus}`,
+      life: 1.6,
+      color: '#ffd08a',
+    });
+    this.onLevelClear(this.level);
+
+    if (this.level >= LEVELS.length) {
+      this.cleared = true;
+      this.mode = 'over';
+      this.overReason = '全部关卡通关';
+      this.best = Math.max(this.best, this.score);
+      this.addShake(10);
+      sfx.win();
+      this.onGameOver(this.overReason, this.score, this.best);
+      this.onHud();
+      return;
+    }
+
+    this.nextLevel = this.level + 1;
+    this.intermission = 3.2;
+    this.onBanner('关卡完成');
     this.onHud();
   }
 
@@ -549,6 +699,7 @@ export class TankGame {
     const a = t.turretAngle;
     const ox = Math.cos(a) * (t.r + 10);
     const oy = Math.sin(a) * (t.r + 10);
+    const big = t.kind === 'boss';
     this.bullets.push({
       x: t.x + ox,
       y: t.y + oy,
@@ -558,7 +709,7 @@ export class TankGame {
       owner: t.team === 'player' ? t.ownerId : undefined,
       dmg: 1,
       life: 2.4,
-      r: 3,
+      r: big ? 5 : 3,
     });
     t.muzzle = 0.07;
     for (let i = 0; i < 3; i++) {
@@ -715,6 +866,11 @@ export class TankGame {
   }
 
   private hurtBase() {
+    if (this.baseInvincible) {
+      this.burst(this.base.x, this.base.y, 8, '#8fe3ff');
+      sfx.ping();
+      return;
+    }
     this.base.hp -= 1;
     this.base.flash = 1;
     this.addShake(10);
@@ -726,6 +882,11 @@ export class TankGame {
   }
 
   private destroyOwnBase() {
+    if (this.baseInvincible) {
+      this.burst(this.base.x, this.base.y, 8, '#8fe3ff');
+      sfx.ping();
+      return;
+    }
     this.base.hp = 0;
     this.base.flash = 1;
     this.addShake(16);
@@ -738,20 +899,20 @@ export class TankGame {
   }
 
   private onEnemyKilled(e: Tank) {
-    const s = ENEMY_STATS[e.kind as EnemyKind];
-    this.score += s.score;
+    const gain = e.score ?? ENEMY_STATS[e.kind as EnemyKind].score;
+    this.score += gain;
     this.texts.push({
       x: e.x,
       y: e.y - 14,
-      text: `+${s.score}`,
+      text: `+${gain}`,
       life: 0.9,
       color: '#ffd08a',
     });
     this.explode(e.x, e.y, 1 + e.r / 16);
-    this.addShake(5);
-    this.hitStop = Math.max(this.hitStop, 0.035);
+    this.addShake(e.kind === 'boss' || e.kind === 'elite' ? 10 : 5);
+    this.hitStop = Math.max(this.hitStop, e.kind === 'boss' || e.kind === 'elite' ? 0.07 : 0.035);
     sfx.explode();
-    if (Math.random() < 0.24) this.dropPowerup(e.x, e.y);
+    if (Math.random() < 0.24 || e.kind === 'boss') this.dropPowerup(e.x, e.y);
     this.onHud();
   }
 
@@ -837,6 +998,11 @@ export class TankGame {
   }
 
   private updateWaves(dt: number) {
+    if (this.gameMode === 'campaign') {
+      this.updateCampaignWaves(dt);
+      return;
+    }
+
     if (this.intermission > 0) {
       this.intermission -= dt;
       if (this.intermission <= 0) this.startWave(this.wave + 1);
@@ -873,10 +1039,76 @@ export class TankGame {
     }
   }
 
+  private updateCampaignWaves(dt: number) {
+    if (this.intermission > 0) {
+      this.intermission -= dt;
+      if (this.intermission <= 0) {
+        if (this.nextLevel > 0) {
+          const n = this.nextLevel;
+          this.nextLevel = 0;
+          this.startLevel(n);
+        } else if (this.levelWave < 3) {
+          this.startLevelWave(this.levelWave + 1);
+        }
+      }
+      return;
+    }
+
+    const def = LEVELS[this.level - 1];
+
+    if (this.spawnQueue.length > 0) {
+      if (this.enemies.length < def.maxAlive) {
+        this.spawnTimer -= dt;
+        if (this.spawnTimer <= 0) {
+          const kind = this.spawnQueue.shift();
+          if (kind) this.spawnEnemy(kind);
+          this.spawnTimer = def.spawnInterval;
+        }
+      }
+      return;
+    }
+
+    if (this.enemies.length === 0) {
+      // 清空残留子弹，避免波次间隙被流弹击中
+      this.bullets = [];
+      const reward = 40 * this.level * this.levelWave;
+      this.score += reward;
+      this.texts.push({
+        x: WIDTH / 2,
+        y: HEIGHT / 2 - 40,
+        text: `波次奖励 +${reward}`,
+        life: 1.5,
+        color: '#ffd08a',
+      });
+
+      if (this.levelWave < 3) {
+        const spot = this.randomFreePoint();
+        this.dropPowerup(spot.x, spot.y);
+        this.intermission = 2.4;
+        this.onBanner(`第 ${this.level} 关 · 第 ${this.levelWave} 波 完成`);
+        this.onHud();
+      } else {
+        this.completeLevel();
+      }
+    }
+  }
+
   private spawnEnemy(kind: EnemyKind) {
+    const level = this.gameMode === 'campaign' ? this.level : 1;
+    if (kind === 'boss' || kind === 'elite') {
+      const spot = this.randomFreePoint();
+      const big = createEnemy(kind, spot.x, spot.y, level);
+      this.enemies.push(big);
+      this.onBanner(kind === 'boss' ? 'BOSS 出现' : '精英出现');
+      this.addShake(9);
+      this.hitStop = Math.max(this.hitStop, 0.06);
+      sfx.wave();
+      return;
+    }
+
     const point = SPAWN_POINTS[this.spawnIndex % SPAWN_POINTS.length];
     this.spawnIndex++;
-    const e = createEnemy(kind, point.x + (Math.random() - 0.5) * 8, point.y);
+    const e = createEnemy(kind, point.x + (Math.random() - 0.5) * 8, point.y, level);
     this.enemies.push(e);
   }
 
