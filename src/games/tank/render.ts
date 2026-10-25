@@ -323,10 +323,14 @@ function drawTank(ctx: CanvasRenderingContext2D, g: TankGame, tank: Tank, t: num
   ctx.save();
   ctx.translate(tank.x, tank.y);
 
-  // 影子
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+  // 影子（双层，靠近车体更实）
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.14)';
   ctx.beginPath();
-  ctx.ellipse(2, 4, hl + 1, hw + 1, tank.hullAngle, 0, Math.PI * 2);
+  ctx.ellipse(3, 5, hl + 4, hw + 4, tank.hullAngle, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.24)';
+  ctx.beginPath();
+  ctx.ellipse(2, 3, hl, hw, tank.hullAngle, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.globalAlpha = blink;
@@ -336,35 +340,117 @@ function drawTank(ctx: CanvasRenderingContext2D, g: TankGame, tank: Tank, t: num
   ctx.rotate(tank.hullAngle);
 
   const tread = tank.tread % 1;
-  for (const sy of [-hw, hw - 9 * scale]) {
-    roundRect(ctx, -hl, sy, hl * 2, 9 * scale, 4 * scale);
-    ctx.fillStyle = '#242c37';
+  const treadH = 9 * scale;
+  for (const sy of [-hw, hw - treadH]) {
+    // 履带底座
+    const trackGrad = ctx.createLinearGradient(0, sy, 0, sy + treadH);
+    trackGrad.addColorStop(0, '#3b4553');
+    trackGrad.addColorStop(0.45, '#20262e');
+    trackGrad.addColorStop(1, '#15191f');
+    roundRect(ctx, -hl, sy, hl * 2, treadH, 3.5 * scale);
+    ctx.fillStyle = trackGrad;
     ctx.fill();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.lineWidth = 1.2;
     ctx.stroke();
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.24)';
-    ctx.lineWidth = 1.4;
-    const gap = 8 * scale;
+    // 履带板
+    const gap = 9 * scale;
     const offset = tread * gap;
-    for (let x = -hl + 3 + offset; x < hl - 2; x += gap) {
+    for (let x = -hl + 2 + offset; x < hl - 2; x += gap) {
+      roundRect(ctx, x, sy + 1 * scale, 5.4 * scale, treadH - 2 * scale, 1.6 * scale);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.17)';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
+
+    // 负重轮
+    const wheelR = 2.1 * scale;
+    for (let i = 0; i < 4; i++) {
+      const wx = -hl + treadH * 0.95 + i * ((hl * 2 - treadH * 1.9) / 3);
       ctx.beginPath();
-      ctx.moveTo(x, sy + 1);
-      ctx.lineTo(x, sy + 8 * scale);
+      ctx.arc(wx, sy + treadH / 2, wheelR, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(10, 14, 18, 0.8)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(wx - wheelR * 0.3, sy + treadH / 2 - wheelR * 0.3, wheelR * 0.32, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.fill();
+    }
+  }
+
+  const bodyTop = -hw + 10 * scale;
+  const bodyH = (hw - 10) * 2;
+  const bodyLeft = -hl + 3 * scale;
+  const bodyW = (hl - 3) * 2;
+  const bodyR = 5 * scale;
+
+  // 车体底色
+  roundRect(ctx, bodyLeft, bodyTop, bodyW, bodyH, bodyR);
+  ctx.fillStyle = palette.body;
+  ctx.fill();
+
+  // 金属明暗：上亮下暗，塑造立体感
+  const grad = ctx.createLinearGradient(0, bodyTop, 0, bodyTop + bodyH);
+  grad.addColorStop(0, 'rgba(255, 255, 255, 0.26)');
+  grad.addColorStop(0.28, 'rgba(255, 255, 255, 0.06)');
+  grad.addColorStop(0.62, 'rgba(0, 0, 0, 0.1)');
+  grad.addColorStop(1, 'rgba(0, 0, 0, 0.48)');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // 顶部棱线高光
+  ctx.beginPath();
+  ctx.moveTo(bodyLeft + 3 * scale, bodyTop + 1.4);
+  ctx.lineTo(bodyLeft + bodyW - 3 * scale, bodyTop + 1.4);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.38)';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+
+  // 装甲板接缝
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+  ctx.lineWidth = 1;
+  for (const px of [-hl * 0.4, hl * 0.4]) {
+    ctx.beginPath();
+    ctx.moveTo(px, bodyTop + 2.5 * scale);
+    ctx.lineTo(px, bodyTop + bodyH - 2.5 * scale);
+    ctx.stroke();
+  }
+
+  // 铆钉
+  for (const rx of [-hl * 0.68, hl * 0.68]) {
+    for (const ry of [-hw * 0.38, hw * 0.38]) {
+      ctx.beginPath();
+      ctx.arc(rx, ry, 1.3 * scale, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.22)';
+      ctx.lineWidth = 0.6;
       ctx.stroke();
     }
   }
 
-  const grad = ctx.createLinearGradient(0, -hw, 0, hw);
-  grad.addColorStop(0, palette.body);
-  grad.addColorStop(1, palette.dark);
-  roundRect(ctx, -hl + 3 * scale, -hw + 10 * scale, (hl - 3) * 2, (hw - 10) * 2, 5 * scale);
-  ctx.fillStyle = grad;
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
+  // 斜向高光（金属反光）
+  ctx.save();
+  roundRect(ctx, bodyLeft, bodyTop, bodyW, bodyH, bodyR);
+  ctx.clip();
+  ctx.globalCompositeOperation = 'lighter';
+  const sheen = ctx.createLinearGradient(-hl, -hw, hl * 0.3, hw);
+  sheen.addColorStop(0, 'rgba(255, 255, 255, 0)');
+  sheen.addColorStop(0.42, 'rgba(255, 255, 255, 0.1)');
+  sheen.addColorStop(0.56, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = sheen;
+  ctx.fillRect(bodyLeft, bodyTop, bodyW, bodyH);
+  ctx.restore();
 
   // Boss / 精英的附加装甲
   if (isBig) {
@@ -387,7 +473,11 @@ function drawTank(ctx: CanvasRenderingContext2D, g: TankGame, tank: Tank, t: num
   ctx.rotate(tank.turretAngle);
   roundRect(ctx, 0, -3.2 * scale, hl + 6 * scale, 6.4 * scale, 2.4 * scale);
   if (isEnemy) {
-    ctx.fillStyle = palette.dark;
+    const barrel = ctx.createLinearGradient(0, -3.2 * scale, 0, 3.2 * scale);
+    barrel.addColorStop(0, palette.trim);
+    barrel.addColorStop(0.45, palette.body);
+    barrel.addColorStop(1, palette.dark);
+    ctx.fillStyle = barrel;
   } else if (tank.ownerId === 'p2') {
     const barrel = ctx.createLinearGradient(0, -3.2 * scale, 0, 3.2 * scale);
     barrel.addColorStop(0, '#9be6f7');
@@ -406,6 +496,14 @@ function drawTank(ctx: CanvasRenderingContext2D, g: TankGame, tank: Tank, t: num
   ctx.lineWidth = 1;
   ctx.stroke();
 
+  // 炮管顶部高光
+  ctx.beginPath();
+  ctx.moveTo(2 * scale, -2.5 * scale);
+  ctx.lineTo(hl + 3 * scale, -2.5 * scale);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.32)';
+  ctx.lineWidth = 0.9;
+  ctx.stroke();
+
   if (!isEnemy) {
     // 炮口制退器
     roundRect(ctx, hl + 3 * scale, -4.6 * scale, 4.4 * scale, 9.2 * scale, 1.8 * scale);
@@ -415,12 +513,24 @@ function drawTank(ctx: CanvasRenderingContext2D, g: TankGame, tank: Tank, t: num
     ctx.stroke();
   }
 
+  // 炮塔座圈（带高光）
+  const ring = ctx.createRadialGradient(-3.2 * scale, -3.2 * scale, 1, 0, 0, 11 * scale);
+  ring.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+  ring.addColorStop(0.4, palette.body);
+  ring.addColorStop(1, palette.dark);
   ctx.beginPath();
   ctx.arc(0, 0, 10 * scale, 0, Math.PI * 2);
-  ctx.fillStyle = palette.body;
+  ctx.fillStyle = ring;
   ctx.fill();
   ctx.strokeStyle = palette.trim;
   ctx.lineWidth = 1.6;
+  ctx.stroke();
+
+  // 座圈上沿反光
+  ctx.beginPath();
+  ctx.arc(0, 0, 8.4 * scale, -Math.PI * 0.92, -Math.PI * 0.12);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+  ctx.lineWidth = 1.3 * scale;
   ctx.stroke();
 
   ctx.beginPath();
