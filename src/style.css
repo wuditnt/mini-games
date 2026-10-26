@@ -739,6 +739,12 @@ kbd {
   box-shadow: none;
 }
 
+.btn-primary[hidden],
+.btn-secondary[hidden],
+.ddz-icon-btn[hidden] {
+  display: none;
+}
+
 .pip.p2.on {
   background: var(--accent-2);
   box-shadow: 0 0 10px rgba(94, 200, 230, 0.5);
@@ -926,6 +932,52 @@ kbd {
   .btn-secondary {
     padding: 12px 20px;
   }
+}
+
+/* ---------- 离开游戏确认 ---------- */
+.leave-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(5, 7, 10, 0.72);
+  backdrop-filter: blur(9px);
+  animation: leave-fade 0.18s ease;
+}
+
+@keyframes leave-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.leave-card {
+  width: min(400px, 100%);
+  padding: 26px 24px 22px;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(22, 27, 34, 0.97), rgba(11, 15, 20, 0.99));
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 40px 90px -50px #000;
+  animation: ov-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.leave-card h2 {
+  margin: 0 0 10px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #f7fafd;
+}
+
+.leave-card .ov-desc {
+  margin: 0 auto 22px;
+  max-width: 280px;
 }
 
 /* ---------- 竖屏提示（仅触屏竖屏出现） ---------- */
@@ -1218,6 +1270,44 @@ kbd {
 .ddz-role.landlord {
   background: rgba(242, 166, 59, 0.2);
   color: #ffca7a;
+}
+
+/* 联机房间的座位槽 */
+.ddz-room-slots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 22px;
+}
+
+.ddz-room-slot {
+  padding: 6px 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  font-size: 12px;
+  color: #7f9188;
+}
+
+.ddz-room-slot.on {
+  border-style: solid;
+  border-color: rgba(127, 224, 168, 0.4);
+  background: rgba(127, 224, 168, 0.08);
+  color: #7fe0a8;
+}
+
+/* 创建 / 加入房间并排，与房间码输入框等宽对齐 */
+.ddz-room-actions {
+  max-width: 220px;
+  margin: 0 auto;
+}
+
+.ddz-room-actions .btn-primary,
+.ddz-room-actions .btn-secondary {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 /* 桌面出牌区 */

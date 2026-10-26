@@ -129,7 +129,8 @@ export class NetSession {
     }
 
     if (msg.t === 'room:msg') {
-      this.onData(msg.data, msg.from);
+      // 双人房间只有 host / guest 两种位置
+      this.onData(msg.data, msg.from as NetRole);
       return;
     }
 

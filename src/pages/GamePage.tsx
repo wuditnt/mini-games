@@ -11,6 +11,7 @@ export default function GamePage() {
   const meta = games.find((g) => g.id === id && g.status === 'ready');
   const hostRef = useRef<HTMLDivElement>(null);
   const [gateDismissed, setGateDismissed] = useState(false);
+  const [leaveConfirm, setLeaveConfirm] = useState(false);
 
   useEffect(() => {
     if (!meta?.loader) return;
@@ -24,7 +25,7 @@ export default function GamePage() {
     void meta.loader().then((mod) => {
       if (cancelled || !hostRef.current) return;
       handle = mod.mount(hostRef.current, {
-        onExit: () => navigate('/lobby'),
+        onExit: () => setLeaveConfirm(true),
       });
     });
 
@@ -40,7 +41,7 @@ export default function GamePage() {
   return (
     <section className={`game-shell${gateDismissed ? ' gate-dismissed' : ''}`}>
       <header className="game-bar">
-        <button className="back-btn" type="button" onClick={() => navigate('/lobby')}>
+        <button className="back-btn" type="button" onClick={() => setLeaveConfirm(true)}>
           ← 返回大厅
         </button>
         <div className="game-bar-title">
@@ -52,6 +53,33 @@ export default function GamePage() {
       </header>
 
       <div className="stage" ref={hostRef} />
+
+      {leaveConfirm && (
+        <div className="leave-confirm" role="dialog" aria-modal="true" aria-labelledby="leave-title">
+          <div className="leave-card">
+            <p className="ov-kicker">LEAVE GAME</p>
+            <h2 id="leave-title">返回大厅？</h2>
+            <p className="ov-desc">离开后当前对局将结束，确定要返回大厅吗？</p>
+            <div className="btn-row">
+              <button
+                className="btn-primary"
+                type="button"
+                autoFocus
+                onClick={() => setLeaveConfirm(false)}
+              >
+                继续游戏
+              </button>
+              <button
+                className="btn-secondary"
+                type="button"
+                onClick={() => navigate('/lobby')}
+              >
+                返回大厅
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="rotate-gate">
         <div className="rotate-card">

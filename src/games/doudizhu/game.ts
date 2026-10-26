@@ -21,6 +21,8 @@ export interface DdzEvents {
   onChange?: () => void;
   onToast?: (message: string) => void;
   onOver?: (playerWin: boolean) => void;
+  /** 某一家出牌（用于音效与读牌） */
+  onPlay?: (seat: Seat, combo: Combo) => void;
   /** 某一家选择不出（用于语音读牌） */
   onPass?: (seat: Seat) => void;
 }
@@ -173,6 +175,13 @@ export class DdzGame {
     this.emit();
   }
 
+  /** 取消所有已选中的牌，恢复到未出牌的状态 */
+  clearSelection() {
+    if (!this.selected.size) return;
+    this.selected.clear();
+    this.emit();
+  }
+
   selectedCards(): Card[] {
     return sortCards(this.hands[PLAYER_SEAT].filter((c) => this.selected.has(c.id)));
   }
@@ -226,6 +235,41 @@ export class DdzGame {
     return true;
   }
 
+  /* ---------------- 联机操作（房主端校验任意座位） ---------------- */
+
+  /** 指定座位用所选牌出牌，返回是否成功 */
+  playAs(seat: Seat, cardIds: number[]): boolean {
+    if (this.phase !== 'play' || this.turn !== seat) return false;
+    const ids = new Set(cardIds);
+    if (!ids.size) return false;
+    const cards = this.hands[seat].filter((card) => ids.has(card.id));
+    if (cards.length !== ids.size) return false;
+    const combo = parseCombo(cards);
+    if (!combo) return false;
+    if (!this.canBeat(combo, seat)) return false;
+    this.applyPlay(seat, cards);
+    return true;
+  }
+
+  /** 指定座位不出，返回是否成功 */
+  passAs(seat: Seat): boolean {
+    if (this.phase !== 'play' || this.turn !== seat) return false;
+    if (!this.lastPlay || this.lastPlay.seat === seat) return false;
+    this.applyPass(seat);
+    return true;
+  }
+
+  /** 提示：为指定座位找一手能压过桌面的牌 */
+  hintFor(seat: Seat): Card[] {
+    if (this.phase !== 'play' || this.turn !== seat) return [];
+    const target = this.lastPlay && this.lastPlay.seat !== seat ? this.lastPlay.combo : null;
+    const move = pickAiPlay(this.hands[seat], target, {
+      teammatePlayed: false,
+      opponentLow: this.opponentLowFor(seat),
+    });
+    return move ? move.cards : [];
+  }
+
   /* ---------------- 内部流程 ---------------- */
 
   private canBeat(combo: Combo, seat: Seat): boolean {
@@ -250,6 +294,8 @@ export class DdzGame {
       this.bombs++;
       this.multiplier *= 2;
     }
+
+    this.events.onPlay?.(seat, combo);
 
     if (this.hands[seat].length === 0) {
       this.finish(seat);
@@ -296,8 +342,13 @@ export class DdzGame {
   /* ---------------- 查询 ---------------- */
 
   playerWon(): boolean {
+    return this.seatWon(PLAYER_SEAT);
+  }
+
+  /** 指定座位是否获胜（按地主/农民阵营判定） */
+  seatWon(seat: Seat): boolean {
     if (this.winner === null || this.landlord === null) return false;
-    return this.landlord === PLAYER_SEAT ? this.winner === PLAYER_SEAT : this.winner !== this.landlord;
+    return this.landlord === seat ? this.winner === seat : this.winner !== this.landlord;
   }
 
   isTeammate(a: Seat, b: Seat): boolean {

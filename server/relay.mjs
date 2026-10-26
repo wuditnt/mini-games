@@ -2,7 +2,7 @@ import { WebSocketServer } from 'ws';
 import { networkInterfaces } from 'node:os';
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const MAX_PLAYERS = 2;
+const MAX_PLAYERS = 3;
 
 function makeCode(rooms) {
   for (let i = 0; i < 200; i++) {
@@ -41,13 +41,7 @@ export function createRelay({ port = 6174, host = '0.0.0.0', log = console.log }
     if (ws && ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg));
   };
 
-  const peerOf = (ws) => {
-    const meta = ws.meta;
-    if (!meta) return null;
-    const room = rooms.get(meta.code);
-    if (!room) return null;
-    return meta.slot === 'host' ? room.guest : room.host;
-  };
+  const membersOf = (room) => [room.host, ...room.guests].filter(Boolean);
 
   const leaveRoom = (ws) => {
     const meta = ws.meta;
@@ -56,17 +50,20 @@ export function createRelay({ port = 6174, host = '0.0.0.0', log = console.log }
     const room = rooms.get(meta.code);
     if (!room) return;
     if (meta.slot === 'host') {
-      const guest = room.guest;
       rooms.delete(meta.code);
-      if (guest) {
-        guest.meta = null;
-        send(guest, { t: 'room:peer', event: 'leave', slot: 'host' });
-        log(`[relay] 房间 ${meta.code} 房主离开，房间解散`);
+      for (const other of room.guests) {
+        other.meta = null;
+        send(other, { t: 'room:peer', event: 'leave', slot: 'host' });
       }
+      log(`[relay] 房间 ${meta.code} 房主离开，房间解散`);
     } else {
-      room.guest = null;
-      send(room.host, { t: 'room:peer', event: 'leave', slot: 'guest' });
-      log(`[relay] 房间 ${meta.code} 队友离开`);
+      const index = room.guests.indexOf(ws);
+      if (index >= 0) room.guests.splice(index, 1);
+      for (const other of membersOf(room)) {
+        if (other === ws) continue;
+        send(other, { t: 'room:peer', event: 'leave', slot: meta.slot });
+      }
+      log(`[relay] 房间 ${meta.code} 玩家离开`);
     }
   };
 
@@ -101,10 +98,11 @@ export function createRelay({ port = 6174, host = '0.0.0.0', log = console.log }
           send(ws, { t: 'room:error', message: '房间数量已满，请稍后再试' });
           return;
         }
-        rooms.set(code, { code, host: ws, guest: null });
+        const cap = Math.min(MAX_PLAYERS, Math.max(2, Number(msg.cap) || 2));
+        rooms.set(code, { code, host: ws, guests: [], cap });
         ws.meta = { code, slot: 'host' };
-        send(ws, { t: 'room:created', code, slot: 'host' });
-        log(`[relay] 创建房间 ${code}`);
+        send(ws, { t: 'room:created', code, slot: 'host', cap });
+        log(`[relay] 创建房间 ${code}（${cap} 人）`);
         return;
       }
 
@@ -119,15 +117,19 @@ export function createRelay({ port = 6174, host = '0.0.0.0', log = console.log }
           send(ws, { t: 'room:error', message: '房间不存在或已解散' });
           return;
         }
-        if (room.guest) {
-          send(ws, { t: 'room:error', message: '房间已满（最多 2 人）' });
+        if (room.guests.length >= room.cap - 1) {
+          send(ws, { t: 'room:error', message: `房间已满（最多 ${room.cap} 人）` });
           return;
         }
-        room.guest = ws;
-        ws.meta = { code, slot: 'guest' };
-        send(ws, { t: 'room:joined', code, slot: 'guest' });
-        send(room.host, { t: 'room:peer', event: 'join', slot: 'guest' });
-        log(`[relay] 房间 ${code} 队友加入`);
+        const slot = room.guests.length === 0 ? 'guest' : 'guest2';
+        room.guests.push(ws);
+        ws.meta = { code, slot };
+        send(ws, { t: 'room:joined', code, slot, cap: room.cap });
+        for (const other of membersOf(room)) {
+          if (other === ws) continue;
+          send(other, { t: 'room:peer', event: 'join', slot });
+        }
+        log(`[relay] 房间 ${code} 玩家加入（${room.guests.length + 1}/${room.cap}）`);
         return;
       }
 
@@ -137,9 +139,13 @@ export function createRelay({ port = 6174, host = '0.0.0.0', log = console.log }
       }
 
       if (msg.t === 'room:msg') {
-        const peer = peerOf(ws);
-        if (peer) {
-          send(peer, { t: 'room:msg', from: ws.meta.slot, data: msg.data });
+        const meta = ws.meta;
+        if (!meta) return;
+        const room = rooms.get(meta.code);
+        if (!room) return;
+        for (const other of membersOf(room)) {
+          if (other === ws) continue;
+          send(other, { t: 'room:msg', from: meta.slot, data: msg.data });
         }
         return;
       }
