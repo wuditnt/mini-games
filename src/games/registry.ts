@@ -326,6 +326,79 @@ const gomokuArt = `
   </g>
 </svg>`;
 
+const doudizhuArt = `
+<svg class="ddz-art" viewBox="0 0 420 300" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <defs>
+    <radialGradient id="dzHalo">
+      <stop offset="0%" stop-color="#f2a63b" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#f2a63b" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="dzFelt" cx="0.5" cy="0.38" r="0.78">
+      <stop offset="0%" stop-color="#227253"/>
+      <stop offset="58%" stop-color="#134d38"/>
+      <stop offset="100%" stop-color="#08221a"/>
+    </radialGradient>
+    <linearGradient id="dzCard" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e2e8ef"/>
+    </linearGradient>
+    <filter id="dzShadow" x="-40%" y="-40%" width="180%" height="190%">
+      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#000" flood-opacity="0.55"/>
+    </filter>
+    <filter id="dzGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <circle cx="210" cy="150" r="150" fill="url(#dzHalo)"/>
+
+  <ellipse cx="210" cy="166" rx="158" ry="106" fill="url(#dzFelt)" stroke="#4d9c78" stroke-opacity="0.45"/>
+  <ellipse cx="210" cy="166" rx="132" ry="84" stroke="#b6e6cb" stroke-opacity="0.12"/>
+  <ellipse cx="210" cy="166" rx="96" ry="58" stroke="#f2a63b" stroke-opacity="0.16"/>
+
+  <!-- 筹码 -->
+  <g opacity="0.95">
+    <rect x="56" y="214" width="36" height="14" rx="4" fill="#f2a63b"/>
+    <rect x="56" y="214" width="36" height="5" rx="2.5" fill="#ffcf86"/>
+    <rect x="62" y="200" width="36" height="14" rx="4" fill="#db8b2e"/>
+    <rect x="62" y="200" width="36" height="5" rx="2.5" fill="#f4ae52"/>
+    <rect x="326" y="196" width="34" height="13" rx="4" fill="#3f8fa8"/>
+    <rect x="326" y="196" width="34" height="4.5" rx="2.2" fill="#7fc6da"/>
+  </g>
+
+  <!-- 三张牌 -->
+  <g filter="url(#dzShadow)">
+    <g transform="rotate(-15 150 172)">
+      <rect x="118" y="112" width="84" height="118" rx="9" fill="url(#dzCard)" stroke="#cbd4de"/>
+      <text x="130" y="140" font-family="sans-serif" font-size="21" font-weight="700" fill="#1b222b">A</text>
+      <text x="130" y="158" font-family="sans-serif" font-size="16" fill="#1b222b">♠</text>
+      <text x="188" y="222" font-family="sans-serif" font-size="38" fill="#1b222b" text-anchor="end">♠</text>
+    </g>
+
+    <g transform="rotate(15 272 172)">
+      <rect x="218" y="112" width="84" height="118" rx="9" fill="url(#dzCard)" stroke="#cbd4de"/>
+      <text x="230" y="140" font-family="sans-serif" font-size="21" font-weight="700" fill="#c1302c">2</text>
+      <text x="230" y="158" font-family="sans-serif" font-size="16" fill="#c1302c">♥</text>
+      <text x="290" y="222" font-family="sans-serif" font-size="38" fill="#c1302c" text-anchor="end">♥</text>
+    </g>
+
+    <g>
+      <rect x="158" y="94" width="90" height="128" rx="9" fill="url(#dzCard)" stroke="#d8dfe7"/>
+      <rect x="166" y="102" width="82" height="120" rx="6" fill="none" stroke="#e0b166" stroke-opacity="0.55"/>
+      <text x="203" y="140" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" letter-spacing="2" fill="#b9803a">JOKER</text>
+      <text x="203" y="186" text-anchor="middle" font-family="sans-serif" font-size="32" font-weight="700" letter-spacing="3" fill="#c1302c">大王</text>
+      <text x="203" y="212" text-anchor="middle" font-family="sans-serif" font-size="11" letter-spacing="1" fill="#8a93a1">DOU DIZHU</text>
+    </g>
+  </g>
+
+  <!-- 地主标记 -->
+  <g filter="url(#dzGlow)">
+    <rect x="176" y="238" width="76" height="24" rx="12" fill="#f2a63b" fill-opacity="0.16" stroke="#f2a63b" stroke-opacity="0.7"/>
+    <text x="214" y="255" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" letter-spacing="3" fill="#ffce8a">地主</text>
+  </g>
+</svg>`;
+
 export const games: GameMeta[] = [
   {
     id: 'tank',
@@ -381,5 +454,16 @@ export const games: GameMeta[] = [
     status: 'ready',
     art: gomokuArt,
     loader: () => import('./gomoku/index'),
+  },
+  {
+    id: 'doudizhu',
+    index: '06',
+    title: '斗地主',
+    mode: '人机对战',
+    description: '经典三人斗地主，叫地主抢底牌，与两名电脑对手比谁先出完手牌。炸弹与王炸翻倍。',
+    tags: ['单人', '牌类', '键鼠 / 触屏'],
+    status: 'ready',
+    art: doudizhuArt,
+    loader: () => import('./doudizhu/index'),
   },
 ];

@@ -1008,3 +1008,584 @@ kbd {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------- 斗地主 ---------- */
+.ddz-frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(100%, calc((100dvh - 132px) * 1.58));
+  aspect-ratio: 1.58 / 1;
+  max-height: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  overflow: hidden;
+  color: var(--text);
+  background:
+    radial-gradient(75% 65% at 50% 36%, rgba(31, 96, 70, 0.5), transparent 72%),
+    radial-gradient(70% 55% at 50% 108%, rgba(8, 32, 24, 0.9), transparent 70%),
+    linear-gradient(180deg, #0d1a15, #060e0b);
+  box-shadow:
+    0 40px 90px -50px #000,
+    0 0 0 1px rgba(0, 0, 0, 0.6),
+    inset 0 0 90px rgba(0, 0, 0, 0.5);
+  --cw: 58px;
+  --ch: calc(var(--cw) * 1.45);
+  --mini-w: calc(var(--cw) * 0.5);
+  --mini-h: calc(var(--mini-w) * 1.42);
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.ddz-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: none;
+  padding: 9px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.ddz-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #f4e6c8;
+}
+
+.ddz-title span {
+  margin-left: 8px;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 2px;
+  color: #7f9188;
+}
+
+.ddz-head-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.ddz-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 11px;
+  color: #9fb2a8;
+  white-space: nowrap;
+}
+
+.ddz-chip b {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffd28a;
+}
+
+.ddz-bottom-chip {
+  gap: 8px;
+}
+
+.ddz-bottom-cards {
+  display: flex;
+  gap: 3px;
+}
+
+.ddz-icon-btn {
+  padding: 5px 12px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #c8d6ce;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.ddz-icon-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.ddz-voice-btn {
+  color: #ffd28a;
+  border-color: rgba(242, 166, 59, 0.35);
+  background: rgba(242, 166, 59, 0.1);
+}
+
+.ddz-voice-btn.off {
+  color: #8a948f;
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.ddz-board {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+/* 对手座位 */
+.ddz-seat {
+  position: absolute;
+  top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+.ddz-seat.left {
+  left: 10px;
+}
+
+.ddz-seat.right {
+  right: 10px;
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+.ddz-seat.active {
+  border-color: rgba(242, 166, 59, 0.5);
+  background: rgba(242, 166, 59, 0.09);
+  box-shadow: 0 0 20px rgba(242, 166, 59, 0.18);
+}
+
+.ddz-avatar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a1206;
+  background: linear-gradient(180deg, #ffd08a, #d9882f);
+  box-shadow: inset 0 -2px 8px rgba(0, 0, 0, 0.28), 0 4px 12px -4px rgba(0, 0, 0, 0.7);
+}
+
+.ddz-seat.right .ddz-avatar {
+  background: linear-gradient(180deg, #a7dcec, #4a93ae);
+  color: #08161c;
+}
+
+.ddz-seat-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+
+.ddz-seat-name {
+  font-size: 12px;
+  color: #e2ebe5;
+}
+
+.ddz-seat-count {
+  font-size: 10px;
+  color: #7f948a;
+}
+
+.ddz-seat-count b {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: #ffd28a;
+}
+
+.ddz-role {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 10px;
+  color: #aab8b0;
+  white-space: nowrap;
+}
+
+.ddz-role:empty {
+  display: none;
+}
+
+.ddz-role.landlord {
+  background: rgba(242, 166, 59, 0.2);
+  color: #ffca7a;
+}
+
+/* 桌面出牌区 */
+.ddz-play {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.ddz-play.show {
+  opacity: 1;
+}
+
+.ddz-play.left {
+  position: absolute;
+  top: 34%;
+  left: 13%;
+  max-width: 44%;
+}
+
+.ddz-play.right {
+  position: absolute;
+  top: 34%;
+  right: 13%;
+  max-width: 44%;
+  justify-content: flex-end;
+}
+
+.ddz-play.self {
+  flex: none;
+  justify-content: center;
+  min-height: calc(var(--mini-h) + 6px);
+  max-width: 90%;
+  margin: 0 auto;
+}
+
+.ddz-play-name {
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.3);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #ffd08a;
+}
+
+.ddz-pass {
+  padding: 3px 12px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.32);
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: #8ea79b;
+}
+
+/* 中央状态 */
+.ddz-center {
+  position: absolute;
+  top: 54%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.ddz-status {
+  font-size: 12px;
+  letter-spacing: 3px;
+  color: #a3bdb0;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
+}
+
+.ddz-toast {
+  min-height: 18px;
+  font-size: 12px;
+  color: #ffd08a;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.ddz-toast.show {
+  opacity: 1;
+}
+
+/* 底部：你的出牌、按钮与手牌 */
+.ddz-foot {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 14px 10px;
+}
+
+.ddz-foot.is-turn {
+  background: linear-gradient(180deg, transparent, rgba(242, 166, 59, 0.06));
+}
+
+.ddz-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 34px;
+}
+
+.ddz-act {
+  padding: 7px 20px;
+  font-size: 13px;
+  color: #e2ebe5;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9px;
+  transition: background 0.18s, border-color 0.18s, color 0.18s, transform 0.12s;
+}
+
+.ddz-act:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.11);
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.ddz-act:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.ddz-act.primary {
+  font-weight: 600;
+  color: #16110a;
+  background: linear-gradient(180deg, #ffc56d, #f2a63b);
+  border-color: transparent;
+  box-shadow: 0 10px 24px -12px rgba(242, 166, 59, 0.85);
+}
+
+.ddz-act.primary:hover:not(:disabled) {
+  filter: brightness(1.05);
+  background: linear-gradient(180deg, #ffc56d, #f2a63b);
+}
+
+.ddz-act:disabled {
+  opacity: 0.34;
+  cursor: not-allowed;
+}
+
+.ddz-wait {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #6e8279;
+}
+
+.ddz-hand {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: calc(var(--ch) + 20px);
+  padding-top: 18px;
+}
+
+.ddz-empty {
+  align-self: center;
+  padding-bottom: 26px;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: #6e8279;
+}
+
+/* 牌面 */
+.ddz-card {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: var(--cw);
+  height: var(--ch);
+  padding: 4px 5px;
+  font-family: var(--font);
+  color: #1d232b;
+  background: linear-gradient(180deg, #ffffff, #e9eef2);
+  border: 1px solid rgba(0, 0, 0, 0.32);
+  border-radius: calc(var(--cw) * 0.12);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.42);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.ddz-card.red {
+  color: #c93636;
+}
+
+.ddz-card .cc-corner {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.ddz-card .cc-corner b {
+  font-family: var(--mono);
+  font-size: calc(var(--cw) * 0.42);
+  font-weight: 700;
+}
+
+.ddz-card .cc-corner i {
+  margin-top: 1px;
+  font-size: calc(var(--cw) * 0.27);
+  font-style: normal;
+}
+
+.ddz-card .cc-pip {
+  position: absolute;
+  right: 5px;
+  bottom: 3px;
+  font-size: calc(var(--cw) * 0.46);
+  opacity: 0.9;
+}
+
+.ddz-hand .ddz-card {
+  margin-left: calc(var(--cw) * -0.52);
+  cursor: pointer;
+}
+
+.ddz-hand .ddz-card:first-child {
+  margin-left: 0;
+}
+
+.ddz-hand .ddz-card:hover {
+  transform: translateY(-7px);
+}
+
+.ddz-card.selected {
+  z-index: 3;
+  transform: translateY(-17px);
+  border-color: #f2a63b;
+  box-shadow:
+    0 0 0 2px rgba(242, 166, 59, 0.55),
+    0 14px 22px rgba(0, 0, 0, 0.5);
+}
+
+.ddz-hand .ddz-card.selected:hover {
+  transform: translateY(-17px);
+}
+
+.ddz-card.joker {
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: #ffd28a;
+  background: linear-gradient(160deg, #2c3746, #111720);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.ddz-card.joker.red {
+  color: #ff8f7f;
+}
+
+.ddz-card .cc-joker-name {
+  font-size: calc(var(--cw) * 0.32);
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.ddz-card .cc-joker-mark {
+  font-size: calc(var(--cw) * 0.13);
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* 小牌（桌面出牌 / 底牌） */
+.ddz-card.mini {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: var(--mini-w);
+  height: var(--mini-h);
+  padding: 2px 3px;
+  border-radius: 4px;
+  cursor: default;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+}
+
+.ddz-card.mini b {
+  font-family: var(--mono);
+  font-size: calc(var(--mini-w) * 0.5);
+  line-height: 1;
+}
+
+.ddz-card.mini i {
+  font-size: calc(var(--mini-w) * 0.36);
+  font-style: normal;
+  line-height: 1;
+}
+
+.ddz-card.mini.joker {
+  flex-direction: column;
+  gap: 0;
+}
+
+.ddz-card.mini.back {
+  border-color: rgba(255, 255, 255, 0.16);
+  background:
+    repeating-linear-gradient(45deg, #24384f 0 4px, #182838 4px 8px);
+}
+
+.ddz-card.mini:hover {
+  transform: none;
+}
+
+@media (max-width: 860px), (pointer: coarse) {
+  .ddz-frame {
+    width: 100%;
+    max-height: 100%;
+    aspect-ratio: auto;
+    height: 100%;
+    border-radius: 10px;
+    --cw: 44px;
+  }
+  .ddz-head {
+    gap: 6px;
+    padding: 5px 8px;
+  }
+  .ddz-head-meta {
+    gap: 5px;
+  }
+  .ddz-icon-btn {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+  .ddz-title {
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+  .ddz-title span,
+  .ddz-chip.ddz-record-chip {
+    display: none;
+  }
+  .ddz-chip {
+    padding: 3px 8px;
+    font-size: 10px;
+  }
+  .ddz-seat {
+    padding: 4px 6px;
+    gap: 6px;
+  }
+  .ddz-avatar {
+    width: 30px;
+    height: 30px;
+    font-size: 11px;
+  }
+  .ddz-play.left {
+    left: 5%;
+  }
+  .ddz-play.right {
+    right: 5%;
+  }
+  .ddz-foot {
+    padding: 0 8px 6px;
+  }
+  .ddz-act {
+    padding: 6px 14px;
+    font-size: 12px;
+  }
+  .ddz-status {
+    font-size: 11px;
+    letter-spacing: 2px;
+  }
+}

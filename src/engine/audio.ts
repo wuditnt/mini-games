@@ -169,6 +169,13 @@ class Sfx {
     this.burst({ dur: 0.05, gain: 0.05, from: 2200, to: 600 });
   }
 
+  /** 斗地主出牌：甩牌的短促摩擦声，牌越多越厚实 */
+  card(count = 1) {
+    const weight = Math.min(1, count / 8);
+    this.burst({ dur: 0.08 + weight * 0.04, gain: 0.09 + weight * 0.05, from: 5200, to: 900 });
+    this.tone({ from: 430 + weight * 120, to: 240, dur: 0.06, type: 'triangle', gain: 0.055 });
+  }
+
   win() {
     [523, 659, 784, 1047].forEach((f, i) =>
       this.tone({ from: f, dur: 0.18, type: 'triangle', gain: 0.1, delay: i * 0.1 })
